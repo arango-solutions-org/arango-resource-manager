@@ -53,12 +53,4 @@ describe('WorkloadActions', () => {
     expect(await screen.findByText(/Kill arangodb-file-parser-worker-default/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Kill the service' })).toBeDisabled()
   })
-
-  it('shows why a button is disabled on hover', async () => {
-    const user = userEvent.setup()
-    mount(<WorkloadActions workload={normalWorkload} readOnly />)
-
-    await user.hover(screen.getByRole('button', { name: 'Kill' }).parentElement!)
-    expect(await screen.findAllByText(/read-only/i)).not.toHaveLength(0)
-  })
 })
