@@ -51,3 +51,43 @@ subjects:
   - kind: ServiceAccount
     name: arango-user-defined-arango-resource-manager
     namespace: arangodb-platform-rnd-a2lc79ac
+---
+# Writes, for the app's scale, stop, restore, restart, kill and delete-pod
+# actions. Separate from the reads so they can be revoked on their own:
+#   kubectl -n arangodb-platform-rnd-a2lc79ac delete role,rolebinding arango-resource-manager-write
+# The app still refuses every write until ARM_READ_ONLY=false is set where it
+# runs, and every write it makes is recorded with who made it and why.
+# Resizing the database (patching ArangoDeployment) is deliberately not here.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: arango-resource-manager-write
+  namespace: arangodb-platform-rnd-a2lc79ac
+  labels:
+    app.kubernetes.io/part-of: arango-resource-manager
+rules:
+  - apiGroups: [apps]
+    resources: [deployments/scale, statefulsets/scale]
+    verbs: [update, patch]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets]
+    verbs: [patch]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: arango-resource-manager-write
+  namespace: arangodb-platform-rnd-a2lc79ac
+  labels:
+    app.kubernetes.io/part-of: arango-resource-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: arango-resource-manager-write
+subjects:
+  - kind: ServiceAccount
+    name: arango-user-defined-arango-resource-manager
+    namespace: arangodb-platform-rnd-a2lc79ac
