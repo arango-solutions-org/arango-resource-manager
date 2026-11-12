@@ -1,0 +1,319 @@
+/*
+ * Arango design tokens. arango-design 2.8.0 (2026-11-09). Keep this line when you copy the file.
+ * Source: Arango Core Library (Figma file sT6JYxyN5ZaSMnLtieK8LH), Style + Mode collections.
+ * Names follow shadcn/ui, so this file drops into any shadcn project as the theme.
+ *
+ * Two styles:
+ *   default                      -> "Platform UI" mode. Internal apps and anything that ships.
+ *   [data-style="prototype"]     -> "Prototype" mode. Prototypes, mockups, demos, POCs.
+ * Two color schemes:
+ *   default                      -> Light
+ *   .dark                        -> Dark
+ *
+ * Do not add colors here. If you need one that is missing, ask the design team.
+ */
+
+:root {
+  /* Type. Mapped to Tailwind font-sans / font-mono in shadcn-theme.css */
+  --font-family-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Radius. 8px for controls and surfaces in both styles.
+     --radius is for surfaces (cards, panels), --radius-inner for things nested in them. */
+  --radius: 8px;
+  --radius-inner: 8px;
+
+  /* Elevation */
+  /* Shadows only on raised surfaces (popovers, menus, tooltips, dialogs, sheets, drawers, toasts).
+     Controls and cards have none: shadow-xs and shadow-sm render nothing. */
+  --elevation-control: 0 0 #0000;
+  --elevation-surface: 0 0 #0000;
+  --elevation-popover: 0 4px 6px -1px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.10);
+  --elevation-sheet: 0 10px 15px -3px rgb(0 0 0 / 0.10), 0 4px 6px -4px rgb(0 0 0 / 0.10);
+  --elevation-tooltip: 0 20px 25px -5px rgb(0 0 0 / 0.10), 0 8px 10px -6px rgb(0 0 0 / 0.10);
+
+  /* Brand anchors. Reference only, components use the semantic tokens below. */
+  --brand-navy: #002e3b;
+  --brand-lime: #befe99;
+
+  /* Light, Platform UI */
+  --background: #ffffff;
+  --foreground: #1d293d;
+  --card: #f8fafc;
+  --card-foreground: #020618;
+  --popover: #ffffff;
+  --popover-foreground: #020618;
+  --primary: #00576e;
+  --primary-foreground: #f8fafc;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172b;
+  --primary-hover: #014654;              /* Figma component/button/primary-bg-hover: teal 900. Hovers are one step darker, never transparent */
+  --secondary-hover: #cad5e2;            /* slate 300, same as --button-secondary-hover */
+  --button-secondary: #e2e8f0;           /* Figma component/button/secondary-bg: slate 200 */
+  --button-secondary-hover: #cad5e2;     /* slate 300 */
+  --badge-primary: #06838a;              /* Figma component/badge/primary-bg: teal 600 */
+  --badge-primary-hover: #00576e;        /* teal 700 */
+  --switch-track: #cad5e2;               /* Figma component/switch/track/off-bg */
+  --muted: #f1f5f9;
+  --muted-foreground: #62748e;
+  --accent: #eefbd5;
+  --accent-foreground: #1d293d;
+  --destructive: #fb2c36;                /* Figma red 500. Tints (bg-destructive/10) in Figma still use red 600 #e7000b */
+  --destructive-foreground: #f8fafc;
+  --success: #00a63e;
+  --success-foreground: #ecfdf5;
+  --warning: #ca3500;                    /* orange 700 */
+  --warning-foreground: #fff7ed;
+  --info: #0069a8;
+  --info-foreground: #f0f9ff;
+  --border: #e2e8f0;
+  --popover-ring: rgb(2 6 24 / 0.10);    /* Figma component/popover/ring: popover, dialog, select borders */
+  --card-border: rgb(2 6 24 / 0.10);     /* Figma component/card/border */
+  --overlay: rgb(0 0 0 / 0.10);          /* Figma sheet and drawer overlay */
+  --muted-subtle: rgb(241 245 249 / 0.5);/* Figma custom/bg-muted-50: Item muted, table footer */
+  --success-subtle: #dcfce7;             /* Figma badge success bg */
+  --success-ring: #a4f4cf;
+  --warning-subtle: #ffedd4;             /* Figma badge warning bg, orange 100 */
+  --warning-ring: #ffd6a7;
+  --warning-text: #ca3500;               /* Figma badge warning text, 4.56:1 on warning-subtle */
+  --warning-subtle-hover: rgb(255 237 212 / 0.6); /* Figma badge warning bg-hover: orange 100 at 60% */
+  --info-ring: #45556c;                  /* Figma alert info border (slate 600) */
+  --input: #e2e8f0;
+  --ring: #014654;
+  --ring-focus: rgb(52 162 159 / 0.5);
+
+  --chart-1: #26bdae;
+  --chart-2: #9ae600;
+  --chart-3: #00d3f2;
+  --chart-4: #7290fa;
+  --chart-5: #0089a0;
+
+  /* Code block (Figma component/code-block/*) */
+  --code-ring: rgb(29 41 61 / 0.05);
+  --code-line-highlight: rgb(29 41 61 / 0.05);
+  --code-destructive-bg: rgb(231 0 11 / 0.05);
+  --code-destructive-ring: rgb(231 0 11 / 0.15);
+  --syntax-keyword: #e7000b;
+  --syntax-string: #00598a;
+  --syntax-function: #7f22fe;
+  --syntax-constant: #155dfc;
+  --syntax-comment: #62748e;
+
+  /* The sidebar is dark teal in light mode too, like the Arango Platform. Same values as .dark. */
+  --sidebar: #014654;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #befe99;
+  --sidebar-primary-foreground: #014654;
+  --sidebar-accent: #befe99;
+  --sidebar-accent-foreground: #014654;
+  --sidebar-hover: #06838a;              /* Figma sidebar/hover (teal 600). Menu item hover; text stays sidebar-foreground */
+  --sidebar-border: rgb(255 255 255 / 0.10);
+  --sidebar-ring: rgb(190 254 153 / 0.64);
+  --sidebar-gradient-from: #014654;      /* Figma sidebar/gradient-from, top */
+  --sidebar-gradient-to: #012d3a;        /* Figma sidebar/gradient-to (teal 950), bottom */
+}
+
+.dark {
+  --background: #020618;
+  --foreground: #f8fafc;
+  --card: #0f172b;
+  --card-foreground: #f8fafc;
+  --popover: #0f172b;
+  --popover-foreground: #f8fafc;
+  --primary: #befe99;
+  --primary-foreground: #014654;
+  --secondary: #1d293d;
+  --secondary-foreground: #f8fafc;
+  --primary-hover: #b0eb8f;              /* lime 200 */
+  --secondary-hover: #45556c;            /* slate 600 */
+  --button-secondary: #314158;           /* slate 700 */
+  --button-secondary-hover: #45556c;
+  --badge-primary: #befe99;
+  --badge-primary-hover: #b0eb8f;
+  --switch-track: rgb(255 255 255 / 0.12);
+  --muted: #1d293d;
+  --muted-foreground: #90a1b9;
+  --accent: #befe99;
+  --accent-foreground: #1b4b54;
+  --destructive: #ff6467;
+  --destructive-foreground: #f8fafc;
+  --success: #05df72;
+  --success-foreground: #002c22;
+  --warning: #ff8904;                    /* orange 400, same pattern as destructive red 400 */
+  --warning-foreground: #441306;
+  --info: #74d4ff;
+  --info-foreground: #052f4a;
+  --border: rgb(255 255 255 / 0.10);
+  --popover-ring: rgb(248 250 252 / 0.10);
+  --card-border: rgb(248 250 252 / 0.10);
+  --overlay: rgb(0 0 0 / 0.10);
+  --muted-subtle: rgb(29 41 61 / 0.5);
+  --success-subtle: #032e15;
+  --success-ring: #006045;
+  --warning-subtle: rgb(255 137 4 / 0.10); /* orange 400 at 10%, like the destructive badge */
+  --warning-ring: rgb(255 137 4 / 0.30);
+  --warning-text: #ff8904;
+  --warning-subtle-hover: rgb(255 137 4 / 0.20);
+  --info-ring: #90a1b9;                  /* not in Figma, which has no dark value */
+  --input: rgb(255 255 255 / 0.15);
+  --ring: #befe99;
+  --ring-focus: rgb(190 254 153 / 0.5);
+
+  --chart-1: #00a99d;
+  --chart-2: #bbf451;
+  --chart-3: #53eafd;
+  --chart-4: #607fff;
+  --chart-5: #078ca3;
+
+  --code-ring: rgb(248 250 252 / 0.10);
+  --code-line-highlight: rgb(248 250 252 / 0.05);
+  --code-destructive-bg: rgb(255 100 103 / 0.10);
+  --code-destructive-ring: rgb(255 100 103 / 0.20);
+  --syntax-keyword: #ff6467;
+  --syntax-string: #74d4ff;
+  --syntax-function: #c4b4ff;
+  --syntax-constant: #8ec5ff;
+  --syntax-comment: #90a1b9;
+
+  --sidebar: #014654;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #befe99;
+  --sidebar-primary-foreground: #014654;
+  --sidebar-accent: #befe99;
+  --sidebar-accent-foreground: #014654;
+  --sidebar-hover: #06838a;              /* Figma sidebar/hover (teal 600). Menu item hover; text stays sidebar-foreground */
+  --sidebar-border: rgb(255 255 255 / 0.10);
+  --sidebar-ring: rgb(190 254 153 / 0.64);
+  --sidebar-gradient-from: #014654;      /* Figma sidebar/gradient-from, top */
+  --sidebar-gradient-to: #012d3a;        /* Figma sidebar/gradient-to (teal 950), bottom */
+}
+
+/* Prototype style. Only the values that differ from Platform UI.
+   Radius stays on the 8px ramp. Figma's Prototype mode still has 14/10 there by mistake. */
+[data-style="prototype"] {
+  --primary: #9810fa;
+  --primary-hover: #8200db;              /* not in Figma, which keeps teal here. Purple 700 */
+  --accent: #9810fa;
+  --accent-foreground: #020618;
+}
+[data-style="prototype"].dark,
+.dark [data-style="prototype"],
+[data-style="prototype"] .dark {
+  --primary: #ad46ff;
+  --primary-hover: #c27aff;              /* not in Figma. Purple 400 */
+  --accent: #1d293d;
+  --accent-foreground: #f8fafc;
+}
+
+/* Sidebar gradient from Figma (sidebar/gradient-from -> gradient-to), top to bottom.
+   Works with shadcn's Sidebar and with <aside class="dark" data-slot="sidebar"> in plain HTML. */
+[data-sidebar="sidebar"],
+aside[data-slot="sidebar"] {
+  background-image: linear-gradient(to bottom, var(--sidebar-gradient-from), var(--sidebar-gradient-to));
+}
+
+/*
+ * Badge and combobox chip colours, from Figma component/badge/* and component/combobox/chip/*.
+ * Hover is always one step darker. Every text pair passes 4.5:1 except where DESIGN.md Known issues says otherwise.
+ * Custom colours (blue, sky, indigo, purple, pink, yellow) exist only for combobox chips. Badges have none.
+ */
+:root {
+  --badge-primary-text: #f8fafc;
+  --badge-secondary: #e2e8f0;  --badge-secondary-hover: #cad5e2;  --badge-secondary-text: #0f172b;
+  --badge-outline-border: #e2e8f0;  --badge-outline-text: #1d293d;
+  --badge-ghost-text: #1d293d;  --badge-ghost-hover: #f1f5f9;
+  --badge-link-text: #00576e;
+  /* Destructive, warning and success badges look like their alerts: same fill, border and text. */
+  --badge-destructive: rgb(231 0 11 / 0.15);  --badge-destructive-hover: rgb(231 0 11 / 0.20);  --badge-destructive-text: #e7000b;  --badge-destructive-border: rgb(251 44 54 / 0.40);
+  --badge-success: #d0fae5;  --badge-success-hover: #a4f4cf;  --badge-success-text: #008236;  --badge-success-border: #5ee9b5;  /* emerald 100 / 200, green 700, emerald 300 */
+  --badge-warning: #ffedd4;  --badge-warning-hover: #ffd6a7;  --badge-warning-text: #ca3500;  --badge-warning-border: #ffd6a7;  /* orange 100 / 200 / 700 / 200 */
+
+  --tabs-trigger-hover: #e2e8f0;  /* Figma component/tabs/trigger-hover-bg: inactive tab hover, slate 200 on the slate 100 tab list */
+  --icon-warning: #e17100;  /* Figma component/icon/warning: standalone warning icon, amber 600 */
+
+  /* Destructive button (Figma custom/bg-destructive-10, -20, destructive-border-40, destructive). */
+  --button-destructive: rgb(231 0 11 / 0.10);  --button-destructive-hover: rgb(231 0 11 / 0.20);  --button-destructive-text: #fb2c36;  --button-destructive-border: rgb(231 0 11 / 0.40);
+
+  /* Alerts (Figma component/alert/*). The destructive alert uses the destructive badge fill and text. */
+  --alert-destructive: rgb(231 0 11 / 0.15);  --alert-destructive-border: rgb(251 44 54 / 0.40);  --alert-destructive-text: #e7000b;
+  --alert-warning: #ffedd4;  --alert-warning-border: #ffd6a7;  --alert-warning-text: #ca3500;
+  --alert-success: #d0fae5;  --alert-success-border: #5ee9b5;  --alert-success-text: #008236;
+  /* Toasts (Figma component/toast/*). Light fill, border and title match the alerts. Description is slate 600 in light and slate 300 in dark, so it reads on the tint. Icons use --destructive and --success. */
+  --toast-error: rgb(231 0 11 / 0.15);  --toast-error-border: rgb(251 44 54 / 0.40);  --toast-error-title: #e7000b;  --toast-error-description: #45556c;
+  --toast-success: #d0fae5;  --toast-success-border: #5ee9b5;  --toast-success-title: #008236;  --toast-success-description: #45556c;
+
+  --chip: #e2e8f0;  --chip-hover: #cad5e2;  --chip-text: #0f172b;  /* default chip = badge secondary */
+  --chip-blue: #dbeafe;  --chip-blue-hover: #bedbff;  --chip-blue-text: #1447e6;
+  --chip-sky: #dff2fe;  --chip-sky-hover: #b8e6fe;  --chip-sky-text: #00598a;      /* sky 800 */
+  --chip-indigo: #e0e7ff;  --chip-indigo-hover: #c6d2ff;  --chip-indigo-text: #432dd7;
+  --chip-purple: #f3e8ff;  --chip-purple-hover: #e9d4ff;  --chip-purple-text: #8200db;
+  --chip-pink: #fce7f3;  --chip-pink-hover: #fccee8;  --chip-pink-text: #a3004c;   /* pink 800 */
+  --chip-yellow: #fef9c2;  --chip-yellow-hover: #fff085;  --chip-yellow-text: #894b00;
+}
+.dark {
+  --badge-primary-text: #014654;
+  --badge-secondary: #314158;  --badge-secondary-hover: #45556c;  --badge-secondary-text: #f8fafc;
+  --badge-outline-border: #62748e;  --badge-outline-text: #f8fafc;  /* slate 500, the shared border is invisible on dark */
+  --badge-ghost-text: #f8fafc;  --badge-ghost-hover: #1d293d;
+  --badge-link-text: #befe99;
+  --badge-destructive: rgb(255 100 103 / 0.10);  --badge-destructive-hover: rgb(255 100 103 / 0.05);  --badge-destructive-text: #ffa2a2;  --badge-destructive-border: rgb(255 100 103 / 0.40);
+  --badge-success: #002c22;  --badge-success-hover: rgb(0 44 34 / 0.60);  --badge-success-text: #05df72;  --badge-success-border: #006045;
+  --badge-warning: rgb(255 137 4 / 0.10);  --badge-warning-hover: rgb(255 137 4 / 0.05);  --badge-warning-text: #ff8904;  --badge-warning-border: rgb(255 137 4 / 0.30);
+
+  --tabs-trigger-hover: #0f172b;  /* slate 900, darker than the slate 800 tab list */
+  --icon-warning: #ff8904;
+  --button-destructive: rgb(255 100 103 / 0.10);  --button-destructive-hover: rgb(255 100 103 / 0.20);  --button-destructive-text: #ff6467;  --button-destructive-border: rgb(255 100 103 / 0.40);
+  --alert-destructive: rgb(255 100 103 / 0.10);  --alert-destructive-border: rgb(255 100 103 / 0.40);  --alert-destructive-text: #ffa2a2;
+  --alert-warning: rgb(255 137 4 / 0.10);  --alert-warning-border: rgb(255 137 4 / 0.30);  --alert-warning-text: #ff8904;
+  --alert-success: #002c22;  --alert-success-border: #006045;  --alert-success-text: #05df72;
+  --toast-error: rgb(255 100 103 / 0.10);  --toast-error-border: rgb(231 0 11 / 0.40);  --toast-error-title: #ff6467;  --toast-error-description: #cad5e2;
+  --toast-success: rgb(5 223 114 / 0.20);  --toast-success-border: #00a63e;  --toast-success-title: #00c950;  --toast-success-description: #cad5e2;
+
+  --chip: #314158;  --chip-hover: #45556c;  --chip-text: #f8fafc;
+  --chip-blue: #193cb8;  --chip-blue-hover: #1c398e;  --chip-blue-text: #dbeafe;
+  --chip-sky: #00598a;  --chip-sky-hover: #024a70;  --chip-sky-text: #dff2fe;
+  --chip-indigo: #372aac;  --chip-indigo-hover: #312c85;  --chip-indigo-text: #e0e7ff;
+  --chip-purple: #6e11b0;  --chip-purple-hover: #59168b;  --chip-purple-text: #f3e8ff;
+  --chip-pink: #a3004c;  --chip-pink-hover: #861043;  --chip-pink-text: #fce7f3;
+  --chip-yellow: #fdc700;  --chip-yellow-hover: #f0b100;  --chip-yellow-text: #432004;  /* bright on purpose: dark yellows read brown */
+}
+/* Teal surface (Figma "Badge Surface" collection, Teal mode). Badges on teal use these in light and dark.
+   Automatic inside the sidebar; add data-surface="teal" to any other teal container. Must stay after .dark. */
+[data-surface="teal"],
+[data-slot="sidebar"],
+[data-sidebar="sidebar"] {
+  --badge-primary: #befe99;  --badge-primary-hover: #b0eb8f;  --badge-primary-text: #014654;
+  --badge-secondary: #90a1b9;  --badge-secondary-hover: #798aa4;  /* Figma colors/slate/450, between slate 400 and 500 */  --badge-secondary-text: #0f172b;
+  --badge-outline-border: #62748e;  --badge-outline-text: #f8fafc;
+  --badge-ghost-text: #f8fafc;  --badge-ghost-hover: #1d293d;
+  --badge-link-text: #befe99;
+  --badge-destructive: #e7000b;  --badge-destructive-hover: #c10007;  --badge-destructive-text: #ffffff;
+  --badge-destructive-border: transparent;  --badge-warning-border: transparent;  --badge-success-border: transparent;  /* solid on teal, no border */
+  --badge-success: #05df72;  --badge-success-hover: #00c950;  --badge-success-text: #032e15;
+  --badge-warning: #ff8904;  --badge-warning-hover: #ff6900;  --badge-warning-text: #441306;
+}
+
+/*
+ * Text aliases kept so older builds keep working. Their values equal Figma (Figma is the source of truth):
+ * success text = success, destructive text = destructive, small grey text = muted-foreground.
+ * Pairs under 4.5:1 are listed in DESIGN.md, Known issues.
+ */
+:root {
+  --success-text: #00a63e;
+  --muted-foreground-on-card: #62748e;
+  --destructive-text: #fb2c36;
+}
+.dark {
+  --success-text: #05df72;
+  --muted-foreground-on-card: #90a1b9;
+  --destructive-text: #ff6467;
+}
+/* Prototype style is owned by code (DESIGN.md section 2): these are not patches, they stay. */
+[data-style="prototype"] {
+  --accent-foreground: #ffffff;          /* #020618 on purple is 3.64:1 */
+}
+[data-style="prototype"].dark,
+.dark [data-style="prototype"],
+[data-style="prototype"] .dark {
+  --primary-foreground: #020618;         /* #014654 on #ad46ff is 2.54:1 */
+}

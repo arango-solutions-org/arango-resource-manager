@@ -5,9 +5,9 @@ import ProtectedBadge from '@/components/actions/ProtectedBadge'
 import CapacityBar from '@/components/resources/CapacityBar'
 import EfficiencyPill from '@/components/resources/EfficiencyPill'
 import StatTile from '@/components/resources/StatTile'
-import Card from '@/components/ui/Card'
-import ErrorPanel from '@/components/ui/ErrorPanel'
-import Spinner from '@/components/ui/Spinner'
+import Panel from '@/components/common/Panel'
+import ErrorPanel from '@/components/common/ErrorPanel'
+import Loading from '@/components/common/Loading'
 import { fetchOverview, fetchUnbounded, fetchWaste } from '@/lib/api'
 import { formatCpu, formatMemory, formatPercent } from '@/lib/format'
 
@@ -28,7 +28,7 @@ export default function Capacity() {
     refetchInterval: 30_000,
   })
 
-  if (overview.isPending) return <Spinner label="Measuring the namespace…" />
+  if (overview.isPending) return <Loading label="Measuring the namespace…" />
   if (overview.error) return <ErrorPanel title="Could not read capacity" error={overview.error} />
 
   const data = overview.data
@@ -38,21 +38,21 @@ export default function Capacity() {
 
   return (
     <div className="space-y-6">
-      <Card className="p-4">
-        <h2 className="text-sm font-semibold text-body">What "provisioned" means here</h2>
+      <Panel className="p-4">
+        <h2 className="text-sm font-semibold text-foreground">What "provisioned" means here</h2>
         {/* Being straight about this is the whole integrity of the page. */}
-        <p className="mt-1 max-w-prose text-xs text-muted">
-          Used, reserved and limit are measured facts. The budget is a number someone chose —{' '}
-          <span className="font-mono text-body">{data.budget.label}</span>. This credential is
+        <p className="mt-1 max-w-prose text-xs text-muted-foreground">
+          Used, reserved and limit are measured facts. The budget is a number someone chose:{' '}
+          <span className="font-mono text-foreground">{data.budget.label}</span>. This credential is
           scoped to the namespace and cannot read node capacity, so nothing here is a reading of
           how much room the cluster actually has.
         </p>
-      </Card>
+      </Panel>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Overcommit"
-          value={data.totals.cpu_overcommit ? `${data.totals.cpu_overcommit.toFixed(2)}×` : '—'}
+          value={data.totals.cpu_overcommit ? `${data.totals.cpu_overcommit.toFixed(2)}×` : 'n/a'}
           sub={`limits ${formatCpu(r.limits.cpu_cores)} vs ${formatCpu(r.requests.cpu_cores)} reserved`}
           footer="If everything burst at once, this namespace would need the limit figure."
         />
@@ -83,8 +83,8 @@ export default function Capacity() {
       </div>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-body">Namespace</h2>
-        <Card className="space-y-4 p-4">
+        <h2 className="mb-2 text-sm font-semibold text-foreground">Namespace</h2>
+        <Panel className="space-y-4 p-4">
           <CapacityBar
             label="CPU"
             used={r.usage.cpu_cores}
@@ -101,21 +101,21 @@ export default function Capacity() {
             budget={data.budget.memory_bytes}
             format={formatMemory}
           />
-        </Card>
+        </Panel>
       </section>
 
       <section>
         <header className="mb-2 flex items-baseline gap-3">
-          <h2 className="text-sm font-semibold text-body">Most reclaimable</h2>
-          <p className="text-xs text-muted">
+          <h2 className="text-sm font-semibold text-foreground">Most reclaimable</h2>
+          <p className="text-xs text-muted-foreground">
             Workloads reserving materially more than they use, worst first
           </p>
         </header>
         {waste.data && waste.data.length > 0 ? (
-          <div className="overflow-x-auto rounded-lg border border-line">
-            <table className="w-full min-w-[54rem] border-collapse bg-cream text-sm">
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full min-w-[54rem] border-collapse bg-background text-sm">
               <thead>
-                <tr className="border-b border-line bg-panel text-left text-xs text-muted">
+                <tr className="border-b border-border bg-card text-left text-xs text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Workload</th>
                   <th className="px-3 py-2 font-medium">Service</th>
                   <th className="px-3 py-2 text-right font-medium">Replicas</th>
@@ -127,10 +127,10 @@ export default function Capacity() {
               </thead>
               <tbody>
                 {waste.data.map((item) => (
-                  <tr key={item.name} className="border-b border-line/60 last:border-0">
+                  <tr key={item.name} className="border-b border-border last:border-0">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs break-all text-body">{item.name}</span>
+                        <span className="font-mono text-xs break-all text-foreground">{item.name}</span>
                         <ProtectedBadge protection={item.protection} />
                       </div>
                     </td>
@@ -138,30 +138,30 @@ export default function Capacity() {
                       {item.service ? (
                         <Link
                           to={`/services/${encodeURIComponent(item.service)}`}
-                          className="text-muted hover:text-arango hover:underline"
+                          className="text-muted-foreground hover:text-primary hover:underline"
                         >
                           {item.service}
                         </Link>
                       ) : (
-                        <span className="text-muted">—</span>
+                        <span className="text-muted-foreground">n/a</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs text-body">
+                    <td className="px-3 py-2 text-right font-mono text-xs text-foreground">
                       {item.replicas}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs text-body">
+                    <td className="px-3 py-2 text-right font-mono text-xs text-foreground">
                       {formatCpu(item.resources.usage.cpu_cores)}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs text-muted">
+                    <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
                       {formatCpu(item.resources.requests.cpu_cores)}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <EfficiencyPill value={item.cpu_efficiency} />
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-pit">
+                    <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-warning-text">
                       {formatCpu(item.reclaimable_cpu_cores)}
                       {item.cost_per_day !== null && (
-                        <span className="block text-[10px] font-normal text-muted">
+                        <span className="block text-xs font-normal text-muted-foreground">
                           ${item.cost_per_day.toFixed(2)}/day
                         </span>
                       )}
@@ -172,9 +172,9 @@ export default function Capacity() {
             </table>
           </div>
         ) : (
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted-foreground">
             Nothing is materially over-reserved
-            {!data.metrics_available && ' — but usage is unknown, so this cannot be judged'}.
+            {!data.metrics_available && ', but usage is unknown, so this cannot be judged'}.
           </p>
         )}
       </section>
@@ -182,22 +182,22 @@ export default function Capacity() {
       {actionable.length > 0 && (
         <section>
           <header className="mb-2">
-            <h2 className="text-sm font-semibold text-body">No limits set</h2>
-            <p className="text-xs text-muted">
+            <h2 className="text-sm font-semibold text-foreground">No limits set</h2>
+            <p className="text-xs text-muted-foreground">
               A container with no limit can consume an entire node.
             </p>
           </header>
-          <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-cream">
+          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-background">
             {actionable.map((pod) => (
               <li key={pod.name} className="flex items-center gap-3 px-3 py-2">
-                <span className="min-w-0 flex-1 font-mono text-xs break-all text-body">
+                <span className="min-w-0 flex-1 font-mono text-xs break-all text-foreground">
                   {pod.name}
                 </span>
-                <span className="text-[11px] text-muted">
+                <span className="text-xs text-muted-foreground">
                   {pod.unset_limit_containers}/{pod.container_count} containers
                 </span>
-                <span className="font-mono text-[11px] text-muted">
-                  {formatCpu(pod.cpu_usage)} · {formatMemory(pod.memory_usage)}
+                <span className="font-mono text-xs text-muted-foreground">
+                  {formatCpu(pod.cpu_usage)}, {formatMemory(pod.memory_usage)}
                 </span>
               </li>
             ))}
@@ -206,7 +206,7 @@ export default function Capacity() {
       )}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-body">Efficiency by service</h2>
+        <h2 className="mb-2 text-sm font-semibold text-foreground">Efficiency by service</h2>
         <ServiceEfficiency />
       </section>
     </div>
@@ -220,7 +220,7 @@ function ServiceEfficiency() {
     refetchInterval: 15_000,
   })
 
-  if (!data) return <Spinner />
+  if (!data) return <Loading />
 
   const sorted = [...data].sort(
     (a, b) => (b.resources.requests.cpu_cores ?? 0) - (a.resources.requests.cpu_cores ?? 0),
@@ -229,15 +229,15 @@ function ServiceEfficiency() {
   return (
     <div className="space-y-3">
       {sorted.map((report) => (
-        <div key={report.name} className="rounded-lg border border-line bg-panel p-3">
+        <div key={report.name} className="rounded-lg border border-border bg-card p-3">
           <div className="mb-1.5 flex items-center gap-2">
             <Link
               to={`/services/${encodeURIComponent(report.name)}`}
-              className="min-w-0 flex-1 truncate text-xs font-medium text-body hover:text-arango"
+              className="min-w-0 flex-1 truncate text-xs font-medium text-foreground hover:text-primary"
             >
               {report.title ?? report.name}
             </Link>
-            <span className="text-[11px] text-muted">
+            <span className="text-xs text-muted-foreground">
               {formatPercent(report.cpu_efficiency)} of CPU used
             </span>
           </div>

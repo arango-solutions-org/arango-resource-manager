@@ -35,6 +35,7 @@ import structlog
 from kubernetes.client.exceptions import ApiException
 
 from app.config import Settings
+from app.identity import Actor
 from app.k8s.client import KubeClients
 from app.models.actions import (
     ActionPlan,
@@ -48,12 +49,12 @@ from app.models.common import ProtectionLevel, Resources
 from app.models.inventory import InventorySnapshot, PodSummary, ServiceGroup, WorkloadSummary
 from app.services import inventory as inventory_service
 from app.services.quantities import add_optional
-from app.store.state import StateStore
+from app.store.activity import ActivityLog, ActivityLogError, ActivityStart, Change
 
 log = structlog.get_logger(__name__)
 
 _TIMEOUT = 30
-ACTOR = "arango-resource-manager"
+MIN_REASON_LENGTH = 3
 
 
 class ActionBlocked(Exception):
@@ -71,7 +72,7 @@ class ActionBlocked(Exception):
 # --------------------------------------------------------------------------
 
 
-def _check_read_only(settings: Settings) -> None:
+def check_read_only(settings: Settings) -> None:
     if settings.read_only:
         raise ActionBlocked(
             BlockedReason.READ_ONLY,
@@ -200,14 +201,17 @@ def plan_scale(
 
 
 def plan_restore(
-    snapshot: InventorySnapshot, settings: Settings, store: StateStore, kind: str, name: str
+    snapshot: InventorySnapshot, settings: Settings, store: ActivityLog, kind: str, name: str
 ) -> ActionPlan:
     workload = find_workload(snapshot, kind, name)
     _check_protection(workload, settings)
 
-    record = store.get_stop(snapshot.namespace, kind, name)
+    try:
+        record = store.restore_point(snapshot.namespace, kind, name)
+    except ActivityLogError as exc:
+        raise ActionBlocked(BlockedReason.LOG_UNAVAILABLE, str(exc)) from exc
     if record is not None:
-        target = int(record["previous_replicas"])
+        target = record.previous_replicas
         warning = None
     else:
         # Never invent a replica count. If this tool did not stop it, it does
@@ -317,7 +321,7 @@ def plan_delete_pod(
         warning = f"This pod is {how}, and it has no controller, so it will not come back."
     if container:
         warning = (
-            f"Kubernetes cannot stop container {container!r} on its own — "
+            f"Kubernetes cannot stop container {container!r} on its own: "
             f"the whole pod is what gets deleted. {warning}"
         )
 
@@ -345,7 +349,7 @@ def plan_kill(snapshot: InventorySnapshot, settings: Settings, kind: str, name: 
     if workload.desired_replicas == 0 and not pods:
         raise ActionBlocked(
             BlockedReason.INVALID,
-            "Nothing to kill — already at 0 replicas and no pods remain.",
+            "Nothing to kill: already at 0 replicas and no pods remain.",
         )
 
     running = workload.desired_replicas > 0
@@ -364,7 +368,7 @@ def plan_kill(snapshot: InventorySnapshot, settings: Settings, kind: str, name: 
         protection=workload.protection,
         requires_typed_confirmation=running,
         warning=(
-            "Pods are force-deleted immediately — no graceful shutdown. "
+            "Pods are force-deleted immediately, with no graceful shutdown. "
             "The service will stop serving requests until it is restored."
             if running
             else (
@@ -406,13 +410,13 @@ def plan_kill_service(snapshot: InventorySnapshot, settings: Settings, name: str
             )
         raise ActionBlocked(
             BlockedReason.INVALID,
-            f"Nothing to kill under {name!r} — already stopped and no pods remain.",
+            f"Nothing to kill under {name!r}: already stopped and no pods remain.",
         )
 
     pods = [pod for workload in targets for pod in _pods_of(snapshot, workload)]
     current = sum(w.desired_replicas for w in targets)
     warning = (
-        f"Pods are force-deleted immediately — no graceful shutdown. "
+        f"Pods are force-deleted immediately, with no graceful shutdown. "
         f"{len(targets)} workload(s) will scale to 0 and can be restored."
     )
     if skipped:
@@ -491,44 +495,99 @@ def _delete_pod(clients: KubeClients, name: str, dry_run: bool, force: bool = Fa
     clients.core.delete_namespaced_pod(name, clients.namespace, **kwargs)
 
 
-def _kill_targets(
-    clients: KubeClients,
-    store: StateStore,
-    plan: ActionPlan,
-    dry_run: bool,
-) -> None:
+def _kill_targets(clients: KubeClients, plan: ActionPlan, dry_run: bool) -> None:
     """Scale each target to 0, then force-delete the pods the user confirmed."""
     for target in plan.targets:
         if target.current_replicas > 0:
-            if not dry_run:
-                store.record_stop(
-                    plan.namespace, target.kind, target.name, target.current_replicas, ACTOR
-                )
             _scale(clients, target.kind, target.name, 0, dry_run)
     for pod in plan.pods_terminating:
         _delete_pod(clients, pod.name, dry_run, force=True)
 
 
+def changes_for(plan: ActionPlan) -> list[Change]:
+    """What a plan changes, in the activity log's terms."""
+    if plan.action in (ActionType.KILL, ActionType.KILL_SERVICE):
+        return [Change(t.kind, t.name, t.current_replicas, 0) for t in plan.targets]
+    if plan.action is ActionType.DELETE_POD:
+        return [Change("Pod", plan.name)]
+    if plan.action is ActionType.RESTART:
+        return [Change(plan.kind, plan.name, plan.current_replicas, plan.current_replicas)]
+    return [Change(plan.kind, plan.name, plan.current_replicas, plan.target_replicas)]
+
+
+def check_attribution(actor: Actor | None, reason: str | None) -> str:
+    """Every executed action needs a verified user and a reason. Returns the reason."""
+    if actor is None:
+        raise ActionBlocked(
+            BlockedReason.UNAUTHENTICATED,
+            "Your platform login could not be verified, so this action cannot be "
+            "attributed to you.",
+            "Sign in to the platform again and reload this page.",
+        )
+    text = (reason or "").strip()
+    if len(text) < MIN_REASON_LENGTH:
+        raise ActionBlocked(
+            BlockedReason.REASON_REQUIRED,
+            "Say why you are doing this. It is recorded with your name.",
+        )
+    return text
+
+
+def begin_activity(
+    store: ActivityLog, plan: ActionPlan, actor: Actor, reason: str, changes: list[Change]
+) -> str:
+    """Record the activity before anything changes. No record, no action."""
+    try:
+        return store.begin(
+            ActivityStart(
+                action=str(plan.action),
+                namespace=plan.namespace,
+                kind=plan.kind,
+                name=plan.name,
+                actor=actor,
+                reason=reason,
+                changes=changes,
+            )
+        )
+    except ActivityLogError as exc:
+        raise ActionBlocked(
+            BlockedReason.LOG_UNAVAILABLE,
+            f"Nothing was changed: the activity log could not record this. {exc}",
+            "Try again. If it keeps failing, check the app's access to its ArangoDB database.",
+        ) from exc
+
+
+def finish_activity(store: ActivityLog, activity_id: str, ok: bool, detail: str | None) -> None:
+    """Record the outcome. The change has already happened, so a failure here is
+    logged rather than raised: the activity stays "started", which still counts
+    as a way back."""
+    try:
+        store.finish(activity_id, ok, detail)
+    except ActivityLogError as exc:
+        log.warning("activity_log.finish_failed", activity=activity_id, error=str(exc))
+
+
 def execute(
     clients: KubeClients,
     settings: Settings,
-    store: StateStore,
+    store: ActivityLog,
     plan: ActionPlan,
     dry_run: bool,
+    actor: Actor | None = None,
+    reason: str | None = None,
 ) -> ActionResult:
     """Run a plan, or validate it against the API server without persisting."""
-    _check_read_only(settings)
+    check_read_only(settings)
+
+    activity_id: str | None = None
+    if not dry_run:
+        text = check_attribution(actor, reason)
+        assert actor is not None
+        activity_id = begin_activity(store, plan, actor, text, changes_for(plan))
 
     try:
         if plan.action in (ActionType.SCALE, ActionType.STOP, ActionType.RESTORE):
-            target = plan.target_replicas or 0
-            # The record goes in before the patch: if this process dies
-            # mid-action, the way back still exists.
-            if not dry_run and plan.action is ActionType.STOP and plan.restore_to:
-                store.record_stop(plan.namespace, plan.kind, plan.name, plan.restore_to, ACTOR)
-            _scale(clients, plan.kind, plan.name, target, dry_run)
-            if not dry_run and plan.action is ActionType.RESTORE:
-                store.clear_stop(plan.namespace, plan.kind, plan.name)
+            _scale(clients, plan.kind, plan.name, plan.target_replicas or 0, dry_run)
 
         elif plan.action is ActionType.RESTART:
             _restart(clients, plan.kind, plan.name, dry_run)
@@ -537,41 +596,21 @@ def execute(
             _delete_pod(clients, plan.name, dry_run, force=plan.force)
 
         elif plan.action in (ActionType.KILL, ActionType.KILL_SERVICE):
-            _kill_targets(clients, store, plan, dry_run)
+            _kill_targets(clients, plan, dry_run)
 
     except ApiException as exc:
         detail = f"The API server rejected this: {exc.status} {exc.reason}."
         log.warning("action.rejected", action=plan.action, name=plan.name, status=exc.status)
-        if not dry_run:
-            store.append_history(
-                {
-                    "action": plan.action,
-                    "kind": plan.kind,
-                    "name": plan.name,
-                    "from_replicas": plan.current_replicas,
-                    "to_replicas": plan.target_replicas,
-                    "dry_run": False,
-                    "result": "error",
-                    "detail": detail,
-                }
-            )
+        if activity_id is not None:
+            finish_activity(store, activity_id, ok=False, detail=detail)
         raise ActionBlocked(BlockedReason.INVALID, detail) from exc
 
     if dry_run:
         plan.server_dry_run = "accepted"
         return ActionResult(executed=False, dry_run=True, plan=plan)
 
-    store.append_history(
-        {
-            "action": plan.action,
-            "kind": plan.kind,
-            "name": plan.name,
-            "from_replicas": plan.current_replicas,
-            "to_replicas": plan.target_replicas,
-            "dry_run": False,
-            "result": "ok",
-        }
-    )
+    assert activity_id is not None
+    finish_activity(store, activity_id, ok=True, detail=None)
     # The next read must show the effect of what just happened, not a snapshot
     # from before it.
     inventory_service.invalidate()

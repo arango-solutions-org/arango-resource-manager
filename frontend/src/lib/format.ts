@@ -1,7 +1,7 @@
 /** Rendering of resource quantities. `null` means unset, and shows as an em dash. */
 
 export function formatCpu(cores: number | null): string {
-  if (cores === null) return '—'
+  if (cores === null) return 'n/a'
   if (cores === 0) return '0'
   if (cores < 1) return `${Math.round(cores * 1000)}m`
   return String(Number(cores.toFixed(2)))
@@ -17,7 +17,7 @@ const UNITS: [string, number][] = [
 ]
 
 export function formatMemory(bytes: number | null): string {
-  if (bytes === null) return '—'
+  if (bytes === null) return 'n/a'
   for (const [suffix, factor] of UNITS) {
     if (bytes >= factor) return `${Number((bytes / factor).toFixed(1))}${suffix}`
   }
@@ -25,7 +25,7 @@ export function formatMemory(bytes: number | null): string {
 }
 
 export function formatPercent(ratio: number | null): string {
-  if (ratio === null) return '—'
+  if (ratio === null) return 'n/a'
   if (ratio > 0 && ratio < 0.001) return '<0.1%'
   return `${Number((ratio * 100).toFixed(1))}%`
 }

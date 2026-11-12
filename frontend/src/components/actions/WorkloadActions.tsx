@@ -3,7 +3,7 @@ import { Minus, Plus, Power, RotateCw, Undo2, XCircle } from 'lucide-react'
 import { useState } from 'react'
 
 import ActionDialog from '@/components/actions/ActionDialog'
-import Tooltip from '@/components/ui/Tooltip'
+import Hint from '@/components/common/Hint'
 import {
   killWorkload,
   restartWorkload,
@@ -35,16 +35,16 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
 
   // What stopping this would hand back to the pool. It is the reason to do it,
   // so it belongs on the button rather than one page deeper.
-  const frees = `${formatCpu(workload.resources.requests.cpu_cores)} · ${formatMemory(
+  const frees = `${formatCpu(workload.resources.requests.cpu_cores)}, ${formatMemory(
     workload.resources.requests.memory_bytes
   )}`
   const alreadyStopped = workload.desired_replicas === 0
-  const stopHint = hint ?? `Scale to 0 — frees ${frees}`
+  const stopHint = hint ?? `Scale to 0, freeing ${frees}`
   const killHint =
     hint ??
     (alreadyStopped
       ? 'Force-delete leftover pods immediately. The replica count is already 0, so nothing comes back.'
-      : 'Force-delete pods and scale to 0 — the service dies immediately, not after a graceful shutdown')
+      : 'Force-delete pods and scale to 0. The service dies immediately, with no graceful shutdown')
 
   function done() {
     setOpen(null)
@@ -53,7 +53,7 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
 
   return (
     <div className="flex items-center gap-1">
-      <div className="flex items-center rounded border border-line bg-cream">
+      <div className="flex items-center rounded border border-border bg-background">
         <Step
           icon={<Minus size={11} />}
           label="one fewer replica"
@@ -64,7 +64,7 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
             setOpen('scale')
           }}
         />
-        <span className="px-1.5 font-mono text-[11px] text-body">{workload.desired_replicas}</span>
+        <span className="px-1.5 font-mono text-xs text-foreground">{workload.desired_replicas}</span>
         <Step
           icon={<Plus size={11} />}
           label="one more replica"
@@ -80,7 +80,7 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
       <IconButton
         icon={<RotateCw size={12} />}
         label="Rolling restart"
-        title={hint ?? 'Rolling restart — replaces pods one at a time, no downtime'}
+        title={hint ?? 'Rolling restart: replaces pods one at a time, no downtime'}
         disabled={disabled}
         onClick={() => setOpen('restart')}
       />
@@ -88,7 +88,7 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
         <IconButton
           icon={<Undo2 size={12} />}
           label="Restore"
-          title={hint ?? 'Scale back up — returns it to the replica count recorded when it stopped'}
+          title={hint ?? 'Scale back up to the replica count recorded when it stopped'}
           disabled={disabled}
           onClick={() => setOpen('restore')}
         />
@@ -115,12 +115,13 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
         <ActionDialog
           title={`Scale ${workload.name}`}
           confirmLabel={`Scale to ${target}`}
-          run={(dryRun) =>
+          run={(dryRun, reason) =>
             scaleWorkload({
               kind: workload.kind,
               name: workload.name,
               replicas: target,
               dryRun,
+              reason,
             })
           }
           onDone={done}
@@ -132,7 +133,7 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
         <ActionDialog
           title={`Restart ${workload.name}`}
           confirmLabel="Restart"
-          run={(dryRun) => restartWorkload(workload.kind, workload.name, dryRun)}
+          run={(dryRun, reason) => restartWorkload(workload.kind, workload.name, dryRun, reason)}
           onDone={done}
           onClose={() => setOpen(null)}
         />
@@ -142,7 +143,7 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
         <ActionDialog
           title={`Restore ${workload.name}`}
           confirmLabel="Restore"
-          run={(dryRun) => restoreWorkload(workload.kind, workload.name, dryRun)}
+          run={(dryRun, reason) => restoreWorkload(workload.kind, workload.name, dryRun, reason)}
           onDone={done}
           onClose={() => setOpen(null)}
         />
@@ -153,7 +154,7 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
           title={`Stop ${workload.name}`}
           confirmLabel="Stop the service"
           destructive
-          run={(dryRun) => stopWorkload(workload.kind, workload.name, dryRun)}
+          run={(dryRun, reason) => stopWorkload(workload.kind, workload.name, dryRun, reason)}
           onDone={done}
           onClose={() => setOpen(null)}
         />
@@ -164,7 +165,7 @@ export default function WorkloadActions({ workload, readOnly }: Props) {
           title={`Kill ${workload.name}`}
           confirmLabel="Kill the service"
           destructive
-          run={(dryRun) => killWorkload(workload.kind, workload.name, dryRun)}
+          run={(dryRun, reason) => killWorkload(workload.kind, workload.name, dryRun, reason)}
           onDone={done}
           onClose={() => setOpen(null)}
         />
@@ -187,17 +188,17 @@ function Step({
   onClick: () => void
 }) {
   return (
-    <Tooltip label={hint ?? label}>
+    <Hint label={hint ?? label}>
       <button
         type="button"
         aria-label={label}
         disabled={disabled}
         onClick={onClick}
-        className="px-1.5 py-1 text-muted hover:text-arango disabled:cursor-not-allowed disabled:opacity-30"
+        className="px-1.5 py-1 text-muted-foreground hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
       >
         {icon}
       </button>
-    </Tooltip>
+    </Hint>
   )
 }
 
@@ -217,18 +218,18 @@ function IconButton({
   onClick: () => void
 }) {
   return (
-    <Tooltip label={title ?? label}>
+    <Hint label={title ?? label}>
       <button
         type="button"
         aria-label={label}
         disabled={disabled}
         onClick={onClick}
-        className={`rounded border border-line bg-cream px-1.5 py-1 disabled:cursor-not-allowed disabled:opacity-30 ${
-          danger ? 'text-muted hover:text-danger' : 'text-muted hover:text-arango'
+        className={`rounded border border-border bg-background px-1.5 py-1 disabled:cursor-not-allowed disabled:opacity-30 ${
+          danger ? 'text-muted-foreground hover:text-destructive-text' : 'text-muted-foreground hover:text-primary'
         }`}
       >
         {icon}
       </button>
-    </Tooltip>
+    </Hint>
   )
 }

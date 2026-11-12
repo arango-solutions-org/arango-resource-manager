@@ -5,10 +5,11 @@ import { describe, expect, it, vi } from 'vitest'
 
 import SideMenu from '@/components/layout/SideMenu'
 import HowTo from '@/pages/HowTo'
+import { renderWithProviders } from '@/test/render'
 
 describe('How-to', () => {
   it('is reachable from the side menu', () => {
-    render(
+    renderWithProviders(
       <MemoryRouter>
         <SideMenu healthy />
       </MemoryRouter>,

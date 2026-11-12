@@ -292,6 +292,8 @@ export const actionRecordSchema = z.object({
   dry_run: z.boolean(),
   result: z.string(),
   detail: z.string().nullable(),
+  actor: z.string().nullable().default(null),
+  reason: z.string().nullable().default(null),
 })
 
 export const tierSchema = z.object({

@@ -10,7 +10,7 @@ export default function UptimeCell({ seconds, startedAt }: Props) {
   return (
     <span
       title={startedAt ?? undefined}
-      className={`font-mono text-xs ${young ? 'font-semibold text-body' : 'text-muted'}`}
+      className={`font-mono text-xs ${young ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}
     >
       {formatUptime(seconds)}
     </span>

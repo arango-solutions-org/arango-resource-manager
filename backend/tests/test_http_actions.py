@@ -18,12 +18,13 @@ from app.config import Settings
 from app.main import app
 from app.services import inventory as inventory_service
 from app.services import metrics
-from app.store.state import StateStore
+from app.store.state import FileActivityLog
 from tests.fakes import FakeClients, mount_app
 
 pytestmark = pytest.mark.integration
 
 WORKER = "arangodb-file-parser-worker-default"
+REASON = "freeing capacity for a demo"
 FILE_PARSER = "arangodb-file-parser"
 
 
@@ -33,17 +34,17 @@ def kube() -> FakeClients:
 
 
 @pytest.fixture
-def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> StateStore:
-    state = StateStore(tmp_path / "state.json")
-    monkeypatch.setattr("app.store.state._store", state)
+def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FileActivityLog:
+    state = FileActivityLog(tmp_path / "state.json")
+    monkeypatch.setattr("app.store.factory._file_log", state)
     return state
 
 
 @pytest.fixture
-def client(kube: FakeClients, store: StateStore) -> Any:
+def client(kube: FakeClients, store: FileActivityLog) -> Any:
     inventory_service.invalidate()
     metrics.invalidate()
-    mount_app(kube, settings=Settings(read_only=False))
+    mount_app(kube, settings=Settings(read_only=False, dev_user="tester"))
     try:
         with TestClient(app) as test_client:
             yield test_client
@@ -62,7 +63,7 @@ def _action(client: Any, path: str, body: dict[str, Any], expected: int = 200) -
 
 
 def test_dry_run_kill_validates_and_changes_nothing(
-    client: Any, kube: FakeClients, store: StateStore
+    client: Any, kube: FakeClients, store: FileActivityLog
 ) -> None:
     body = _action(
         client, "/api/v1/actions/kill", {"kind": "Deployment", "name": WORKER, "dry_run": True}
@@ -72,13 +73,17 @@ def test_dry_run_kill_validates_and_changes_nothing(
     assert body["plan"]["force"] is True
     assert body["plan"]["targets"][0]["name"] == WORKER
     assert all(kwargs.get("dry_run") == "All" for _, kwargs in kube.calls)
-    assert store.get_stop("example-platform", "Deployment", WORKER) is None
+    assert store.restore_point("example-platform", "Deployment", WORKER) is None
     assert client.get("/api/v1/actions/history").json() == []
 
 
-def test_kill_then_restore_through_http(client: Any, kube: FakeClients, store: StateStore) -> None:
+def test_kill_then_restore_through_http(
+    client: Any, kube: FakeClients, store: FileActivityLog
+) -> None:
     body = _action(
-        client, "/api/v1/actions/kill", {"kind": "Deployment", "name": WORKER, "dry_run": False}
+        client,
+        "/api/v1/actions/kill",
+        {"kind": "Deployment", "name": WORKER, "dry_run": False, "reason": REASON},
     )
     assert body["executed"] is True
     assert body["plan"]["restore_to"] == 5
@@ -96,6 +101,8 @@ def test_kill_then_restore_through_http(client: Any, kube: FakeClients, store: S
     history = client.get("/api/v1/actions/history").json()
     assert history[0]["action"] == "kill"
     assert history[0]["result"] == "ok"
+    assert history[0]["actor"] == "local:tester"
+    assert history[0]["reason"] == REASON
 
     reads_before = kube.reads.count("pods")
     client.get("/api/v1/workloads")
@@ -105,7 +112,7 @@ def test_kill_then_restore_through_http(client: Any, kube: FakeClients, store: S
     restored = _action(
         client,
         "/api/v1/actions/restore",
-        {"kind": "Deployment", "name": WORKER, "dry_run": False},
+        {"kind": "Deployment", "name": WORKER, "dry_run": False, "reason": REASON},
     )
     assert restored["executed"] is True
     assert kube.calls[0][0] == "scale_deployment"
@@ -117,7 +124,7 @@ def test_stop_records_the_count_without_deleting_pods(client: Any, kube: FakeCli
     body = _action(
         client,
         "/api/v1/actions/stop",
-        {"kind": "Deployment", "name": WORKER, "dry_run": False},
+        {"kind": "Deployment", "name": WORKER, "dry_run": False, "reason": REASON},
     )
     assert body["plan"]["force"] is False
     assert body["plan"]["targets"] == []
@@ -149,7 +156,7 @@ def test_kill_service_scales_every_file_parser_workload(client: Any, kube: FakeC
     body = _action(
         client,
         f"/api/v1/actions/services/{FILE_PARSER}/kill",
-        {"dry_run": False},
+        {"dry_run": False, "reason": REASON},
     )
     assert body["executed"] is True
     assert {t["name"] for t in body["plan"]["targets"]} == {
@@ -196,3 +203,29 @@ def test_unknown_workload_is_404(client: Any) -> None:
         expected=404,
     )
     assert body["blocked_reason"] == "not_found"
+
+
+def test_executing_without_a_reason_is_refused_before_anything_changes(
+    client: Any, kube: FakeClients
+) -> None:
+    body = _action(
+        client,
+        "/api/v1/actions/stop",
+        {"kind": "Deployment", "name": WORKER, "dry_run": False, "reason": "  "},
+        expected=422,
+    )
+    assert body["blocked_reason"] == "reason_required"
+    assert kube.calls == []
+    assert client.get("/api/v1/actions/history").json() == []
+
+
+def test_a_dry_run_needs_no_reason(client: Any, kube: FakeClients) -> None:
+    body = _action(client, "/api/v1/actions/stop", {"kind": "Deployment", "name": WORKER})
+    assert body["dry_run"] is True
+
+
+def test_actor_reports_who_actions_are_recorded_as(client: Any) -> None:
+    assert client.get("/api/v1/actions/actor").json() == {
+        "user": "local:tester",
+        "source": "local",
+    }

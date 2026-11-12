@@ -1,0 +1,204 @@
+/*
+ * Arango theme for shadcn/ui on Tailwind v4. arango-design 2.8.0 (2026-11-09). Keep this line when you copy the file.
+ *
+ * Setup:
+ *   1. npx shadcn@latest init        (pick any base color, this file replaces it)
+ *   2. Copy tokens.css next to your globals.css
+ *   3. Replace the :root, .dark and @theme inline blocks in globals.css with:
+ *        @import "tailwindcss";
+ *        @import "./tokens.css";
+ *        @import "./shadcn-theme.css";
+ *   4. Load Inter and Geist Mono (next/font, Google Fonts or Fontsource)
+ *   5. Prototype? Add data-style="prototype" to <html>
+ *
+ * After this, every shadcn component (Button, Card, Table, Dialog, Sidebar...) uses
+ * Arango colors through bg-primary, text-muted-foreground, border-border and so on.
+ * Never override a component with a raw color class like bg-teal-700 or bg-[#00576e].
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-family-sans);
+  --font-heading: var(--font-family-sans);
+  --font-mono: var(--font-family-mono);
+
+  /* 13px is the floor. The Figma library's 12px step is a design-team exception,
+     so text-xs (used by Badge, Kbd, menu shortcuts...) is remapped to 13px. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+
+  /* Controls (Button, Input, Select, Tabs trigger) use rounded-md: 8px.
+     Surfaces (Card) use rounded-xl and nested surfaces rounded-lg: 8px.
+     Dialogs and sheets use rounded-2xl: 14px.
+     Same values in Platform UI and Prototype. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: var(--radius-inner);
+  --radius-xl: var(--radius);
+  --radius-2xl: 14px;
+
+  --shadow-xs: var(--elevation-control);
+  --shadow-sm: var(--elevation-surface);
+  --shadow-md: var(--elevation-popover);
+  --shadow-lg: var(--elevation-sheet);
+  --shadow-xl: var(--elevation-tooltip);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-text: var(--success-text);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-focus: var(--ring-focus);
+  --color-muted-foreground-on-card: var(--muted-foreground-on-card);
+  --color-destructive-text: var(--destructive-text);
+  --color-popover-ring: var(--popover-ring);
+  --color-card-border: var(--card-border);
+  --color-overlay: var(--overlay);
+  --color-muted-subtle: var(--muted-subtle);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-ring: var(--success-ring);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-warning-subtle-hover: var(--warning-subtle-hover);
+  --color-warning-ring: var(--warning-ring);
+  --color-info-ring: var(--info-ring);
+  --color-warning-text: var(--warning-text);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-button-secondary: var(--button-secondary);
+  --color-button-secondary-hover: var(--button-secondary-hover);
+  --color-badge-primary: var(--badge-primary);
+  --color-badge-primary-hover: var(--badge-primary-hover);
+  --color-badge-primary-text: var(--badge-primary-text);
+  --color-badge-secondary: var(--badge-secondary);
+  --color-badge-secondary-hover: var(--badge-secondary-hover);
+  --color-badge-secondary-text: var(--badge-secondary-text);
+  --color-badge-destructive: var(--badge-destructive);
+  --color-badge-destructive-hover: var(--badge-destructive-hover);
+  --color-badge-destructive-text: var(--badge-destructive-text);
+  --color-badge-success: var(--badge-success);
+  --color-badge-success-hover: var(--badge-success-hover);
+  --color-badge-success-text: var(--badge-success-text);
+  --color-badge-warning: var(--badge-warning);
+  --color-badge-warning-hover: var(--badge-warning-hover);
+  --color-badge-warning-text: var(--badge-warning-text);
+  --color-badge-outline-border: var(--badge-outline-border);
+  --color-badge-outline-text: var(--badge-outline-text);
+  --color-badge-ghost-text: var(--badge-ghost-text);
+  --color-badge-ghost-hover: var(--badge-ghost-hover);
+  --color-badge-link-text: var(--badge-link-text);
+  --color-alert-destructive: var(--alert-destructive);
+  --color-alert-destructive-border: var(--alert-destructive-border);
+  --color-alert-destructive-text: var(--alert-destructive-text);
+  --color-alert-warning: var(--alert-warning);
+  --color-alert-warning-border: var(--alert-warning-border);
+  --color-alert-warning-text: var(--alert-warning-text);
+  --color-toast-error: var(--toast-error);
+  --color-toast-error-border: var(--toast-error-border);
+  --color-toast-error-title: var(--toast-error-title);
+  --color-toast-success: var(--toast-success);
+  --color-toast-success-border: var(--toast-success-border);
+  --color-toast-success-title: var(--toast-success-title);
+  --color-badge-destructive-border: var(--badge-destructive-border);
+  --color-badge-warning-border: var(--badge-warning-border);
+  --color-badge-success-border: var(--badge-success-border);
+  --color-alert-success: var(--alert-success);
+  --color-alert-success-border: var(--alert-success-border);
+  --color-alert-success-text: var(--alert-success-text);
+  --color-toast-error-description: var(--toast-error-description);
+  --color-toast-success-description: var(--toast-success-description);
+  --color-button-destructive: var(--button-destructive);
+  --color-button-destructive-hover: var(--button-destructive-hover);
+  --color-button-destructive-text: var(--button-destructive-text);
+  --color-button-destructive-border: var(--button-destructive-border);
+  --color-icon-warning: var(--icon-warning);
+  --color-tabs-trigger-hover: var(--tabs-trigger-hover);
+  --color-chip: var(--chip);
+  --color-chip-hover: var(--chip-hover);
+  --color-chip-text: var(--chip-text);
+  --color-chip-blue: var(--chip-blue);
+  --color-chip-blue-hover: var(--chip-blue-hover);
+  --color-chip-blue-text: var(--chip-blue-text);
+  --color-chip-sky: var(--chip-sky);
+  --color-chip-sky-hover: var(--chip-sky-hover);
+  --color-chip-sky-text: var(--chip-sky-text);
+  --color-chip-indigo: var(--chip-indigo);
+  --color-chip-indigo-hover: var(--chip-indigo-hover);
+  --color-chip-indigo-text: var(--chip-indigo-text);
+  --color-chip-purple: var(--chip-purple);
+  --color-chip-purple-hover: var(--chip-purple-hover);
+  --color-chip-purple-text: var(--chip-purple-text);
+  --color-chip-pink: var(--chip-pink);
+  --color-chip-pink-hover: var(--chip-pink-hover);
+  --color-chip-pink-text: var(--chip-pink-text);
+  --color-chip-yellow: var(--chip-yellow);
+  --color-chip-yellow-hover: var(--chip-yellow-hover);
+  --color-chip-yellow-text: var(--chip-yellow-text);
+  --color-switch-track: var(--switch-track);
+  --color-code-ring: var(--code-ring);
+  --color-code-line-highlight: var(--code-line-highlight);
+  --color-code-destructive-bg: var(--code-destructive-bg);
+  --color-code-destructive-ring: var(--code-destructive-ring);
+  --color-syntax-keyword: var(--syntax-keyword);
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-function: var(--syntax-function);
+  --color-syntax-constant: var(--syntax-constant);
+  --color-syntax-comment: var(--syntax-comment);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--ring), 0 0 0 4px var(--ring-focus);
+  }
+  body {
+    @apply bg-background text-foreground font-sans text-sm antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-weight: 500;
+    letter-spacing: -0.025em; /* Figma: -0.4px at 16, -0.6px at 24 */
+  }
+  code, kbd, samp, pre {
+    @apply font-mono;
+  }
+}

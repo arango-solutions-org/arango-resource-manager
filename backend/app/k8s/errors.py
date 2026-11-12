@@ -32,5 +32,5 @@ def translate(exc: ApiException, what: str) -> K8sError:
     if exc.status == 404:
         return K8sNotFound(f"{what}: not found.")
     if exc.status == 409:
-        return K8sConflict(f"{what}: conflict — the object changed. Retry.")
+        return K8sConflict(f"{what}: conflict, the object changed. Retry.")
     return K8sError(f"{what}: Kubernetes API returned {exc.status} {exc.reason}.")

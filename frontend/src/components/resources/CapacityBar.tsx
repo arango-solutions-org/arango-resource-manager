@@ -10,10 +10,9 @@ interface Props {
 /**
  * One bar, reused at every scope: namespace, service, workload, pod.
  *
- * It reads as a cross-section of the avocado, darkest at the core — solid
- * Arango green for what is actually used, pale flesh for what is reserved
- * around it, and a tick where the burst limit sits. The whole point is that
- * the gap between the green and the pale is the waste.
+ * Dark teal (chart-5) for what is actually used, lime (chart-2) for what is
+ * reserved around it, and a tick where the burst limit sits. The whole point
+ * is that the gap between the two is the waste.
  *
  * Never colour-only: the same numbers appear in the caption beneath and in the
  * aria-label.
@@ -32,34 +31,34 @@ export default function CapacityBar({ used, reserved, limit, budget, format, lab
     budget !== null ? `${format(budget)} budget` : null,
   ]
     .filter(Boolean)
-    .join(' · ')
+    .join(', ')
 
   return (
     <div>
       <div
         role="img"
         aria-label={`${label}: ${caption}`}
-        className="relative h-2.5 w-full overflow-hidden rounded-full border border-line bg-panel"
+        className="relative h-2.5 w-full overflow-hidden rounded-full bg-muted"
       >
         <div
-          className="absolute inset-y-0 left-0 bg-flesh-light"
+          className="absolute inset-y-0 left-0 bg-chart-2"
           style={{ width: `${pct(reserved)}%` }}
         />
-        <div className="absolute inset-y-0 left-0 bg-arango" style={{ width: `${pct(used)}%` }} />
+        <div className="absolute inset-y-0 left-0 bg-chart-5" style={{ width: `${pct(used)}%` }} />
         {limit !== null && (
           <div
-            className="absolute inset-y-0 w-0.5 bg-flesh-deep"
+            className="absolute inset-y-0 w-0.5 bg-foreground"
             style={{ left: `calc(${pct(limit)}% - 1px)` }}
             title={`limit ${format(limit)}`}
           />
         )}
       </div>
 
-      <p className="mt-1 font-mono text-[11px] text-muted">{caption}</p>
+      <p className="mt-1 font-mono text-xs text-muted-foreground">{caption}</p>
       {overBudget && (
         // Its own line: wrapped mid-caption on a narrow tile it read as part of
         // the numbers rather than as a remark about them.
-        <p className="font-mono text-[11px] text-pit" title="Limits exceed the budget">
+        <p className="font-mono text-xs text-warning-text" title="Limits exceed the budget">
           ▸ limits exceed the budget
         </p>
       )}

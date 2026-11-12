@@ -18,21 +18,21 @@ export function capabilityChips(info: ClusterInfo): Chip[] {
 
   const chips: Chip[] = [
     {
-      label: has('metrics_server') ? 'metrics' : 'no metrics',
+      label: has('metrics_server') ? 'Metrics' : 'No metrics',
       tone: has('metrics_server') ? 'ok' : 'warn',
       title: has('metrics_server')
         ? 'metrics-server is serving live CPU and memory usage.'
         : 'metrics-server is unavailable, so live usage cannot be shown.',
     },
     {
-      label: caps.resourcequota_present ? 'quota' : 'no quota',
+      label: caps.resourcequota_present ? 'Quota' : 'No quota',
       tone: caps.resourcequota_present ? 'ok' : 'off',
       title: caps.resourcequota_present
         ? 'A ResourceQuota defines this namespace’s ceiling.'
         : 'No ResourceQuota exists, so the budget is derived from requests.',
     },
     {
-      label: has('nodes_list') ? 'nodes' : 'namespace-scoped',
+      label: has('nodes_list') ? 'Nodes' : 'Namespace-scoped',
       tone: has('nodes_list') ? 'ok' : 'off',
       title: has('nodes_list')
         ? 'Node capacity is readable.'
@@ -42,7 +42,7 @@ export function capabilityChips(info: ClusterInfo): Chip[] {
 
   if (info.safety.read_only) {
     chips.push({
-      label: 'read-only',
+      label: 'Read-only',
       tone: 'warn',
       title: 'ARM_READ_ONLY is set. Every mutating route returns 403.',
     })

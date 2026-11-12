@@ -45,20 +45,20 @@ export default function PodTable({
   return (
     // Wide tables scroll inside their own container; the page never scrolls
     // sideways.
-    <div className="overflow-x-auto rounded-lg border border-line">
-      <table className="w-full min-w-[56rem] border-collapse bg-cream text-sm">
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full min-w-[56rem] border-collapse bg-background text-sm">
         <thead>
-          <tr className="border-b border-line bg-panel text-left">
+          <tr className="border-b border-border bg-card text-left">
             {HEADERS.filter((h) => showService || h.label !== 'Workload').map((header) => (
               <th
                 key={header.label}
-                className={`px-3 py-2 text-xs font-medium text-muted ${header.align ?? ''}`}
+                className={`px-3 py-2 text-xs font-medium text-muted-foreground ${header.align ?? ''}`}
               >
                 {header.key ? (
                   <button
                     type="button"
                     onClick={() => onSort(header.key as SortKey)}
-                    className="inline-flex items-center gap-1 hover:text-body"
+                    className="inline-flex items-center gap-1 hover:text-foreground"
                   >
                     {header.label}
                     {sort === header.key &&
@@ -80,7 +80,7 @@ export default function PodTable({
             <tr
               key={pod.name}
               onClick={onSelect ? () => onSelect(pod.name) : undefined}
-              className={`border-b border-line/60 last:border-0 hover:bg-panel/60 ${
+              className={`border-b border-border last:border-0 hover:bg-muted-subtle ${
                 onSelect ? 'cursor-pointer' : ''
               }`}
             >
@@ -93,21 +93,21 @@ export default function PodTable({
               </td>
               <td className="px-3 py-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs break-all text-body">{pod.name}</span>
+                  <span className="font-mono text-xs break-all text-foreground">{pod.name}</span>
                   <ProtectedBadge protection={pod.protection} />
                 </div>
                 {showService && pod.service && (
                   <Link
                     to={`/services/${encodeURIComponent(pod.service)}`}
-                    className="text-[11px] text-muted hover:text-arango hover:underline"
+                    className="text-xs text-muted-foreground hover:text-primary hover:underline"
                   >
                     {pod.service}
                   </Link>
                 )}
               </td>
               {showService && (
-                <td className="px-3 py-2 font-mono text-xs text-muted">
-                  {pod.workload?.name ?? '—'}
+                <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                  {pod.workload?.name ?? 'None'}
                 </td>
               )}
               <td className="px-3 py-2">
@@ -117,12 +117,12 @@ export default function PodTable({
                 <RestartBadge count={pod.restart_count} lastRestartAt={pod.last_restart_at} />
               </td>
               <td className="px-3 py-2 text-right font-mono text-xs">
-                <span className="text-body">{formatCpu(pod.resources.usage.cpu_cores)}</span>
-                <span className="text-muted"> / {formatCpu(pod.resources.requests.cpu_cores)}</span>
+                <span className="text-foreground">{formatCpu(pod.resources.usage.cpu_cores)}</span>
+                <span className="text-muted-foreground"> / {formatCpu(pod.resources.requests.cpu_cores)}</span>
               </td>
               <td className="px-3 py-2 text-right font-mono text-xs">
-                <span className="text-body">{formatMemory(pod.resources.usage.memory_bytes)}</span>
-                <span className="text-muted">
+                <span className="text-foreground">{formatMemory(pod.resources.usage.memory_bytes)}</span>
+                <span className="text-muted-foreground">
                   {' '}
                   / {formatMemory(pod.resources.requests.memory_bytes)}
                 </span>

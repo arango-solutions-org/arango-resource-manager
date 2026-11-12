@@ -176,45 +176,51 @@ export interface ScaleArgs {
   name: string
   replicas: number
   dryRun: boolean
+  reason?: string
 }
 
-export function scaleWorkload({ kind, name, replicas, dryRun }: ScaleArgs) {
-  return post('/actions/scale', { kind, name, replicas, dry_run: dryRun }, actionResultSchema)
+export function scaleWorkload({ kind, name, replicas, dryRun, reason }: ScaleArgs) {
+  return post(
+    '/actions/scale',
+    { kind, name, replicas, dry_run: dryRun, reason },
+    actionResultSchema,
+  )
 }
 
-export function stopWorkload(kind: string, name: string, dryRun: boolean) {
-  return post('/actions/stop', { kind, name, dry_run: dryRun }, actionResultSchema)
+export function stopWorkload(kind: string, name: string, dryRun: boolean, reason?: string) {
+  return post('/actions/stop', { kind, name, dry_run: dryRun, reason }, actionResultSchema)
 }
 
-export function restoreWorkload(kind: string, name: string, dryRun: boolean) {
-  return post('/actions/restore', { kind, name, dry_run: dryRun }, actionResultSchema)
+export function restoreWorkload(kind: string, name: string, dryRun: boolean, reason?: string) {
+  return post('/actions/restore', { kind, name, dry_run: dryRun, reason }, actionResultSchema)
 }
 
-export function restartWorkload(kind: string, name: string, dryRun: boolean) {
-  return post('/actions/restart', { kind, name, dry_run: dryRun }, actionResultSchema)
+export function restartWorkload(kind: string, name: string, dryRun: boolean, reason?: string) {
+  return post('/actions/restart', { kind, name, dry_run: dryRun, reason }, actionResultSchema)
 }
 
 export interface DeletePodArgs {
   force?: boolean
   container?: string
+  reason?: string
 }
 
 export function deletePod(name: string, dryRun: boolean, args: DeletePodArgs = {}) {
   return post(
     `/actions/pods/${encodeURIComponent(name)}/delete`,
-    { dry_run: dryRun, force: args.force ?? true, container: args.container },
+    { dry_run: dryRun, force: args.force ?? true, container: args.container, reason: args.reason },
     actionResultSchema,
   )
 }
 
-export function killWorkload(kind: string, name: string, dryRun: boolean) {
-  return post('/actions/kill', { kind, name, dry_run: dryRun }, actionResultSchema)
+export function killWorkload(kind: string, name: string, dryRun: boolean, reason?: string) {
+  return post('/actions/kill', { kind, name, dry_run: dryRun, reason }, actionResultSchema)
 }
 
-export function killService(name: string, dryRun: boolean) {
+export function killService(name: string, dryRun: boolean, reason?: string) {
   return post(
     `/actions/services/${encodeURIComponent(name)}/kill`,
-    { dry_run: dryRun },
+    { dry_run: dryRun, reason },
     actionResultSchema,
   )
 }
@@ -231,6 +237,13 @@ export function fetchDatabase() {
   return get('/database', databaseStatusSchema)
 }
 
-export function scaleDatabase(tier: string, count: number, dryRun: boolean) {
-  return post('/database/scale', { tier, count, dry_run: dryRun }, actionResultSchema)
+export function scaleDatabase(tier: string, count: number, dryRun: boolean, reason?: string) {
+  return post('/database/scale', { tier, count, dry_run: dryRun, reason }, actionResultSchema)
+}
+
+export const actorSchema = z.object({ user: z.string().nullable(), source: z.string().nullable() })
+export type ActorInfo = z.infer<typeof actorSchema>
+
+export function fetchActor(): Promise<ActorInfo> {
+  return get('/actions/actor', actorSchema)
 }

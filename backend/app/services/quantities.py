@@ -114,7 +114,7 @@ def add_optional(left: float | None, right: float | None) -> float | None:
 def format_cpu(cores: float | None) -> str:
     """Render cores for display: 0.003 -> "3m", 2.0 -> "2", 46.25 -> "46.25"."""
     if cores is None:
-        return "—"
+        return "n/a"
     if cores == 0:
         return "0"
     if cores < 1:
@@ -125,7 +125,7 @@ def format_cpu(cores: float | None) -> str:
 def format_memory(num_bytes: int | float | None) -> str:
     """Render bytes in the largest binary unit that keeps it readable."""
     if num_bytes is None:
-        return "—"
+        return "n/a"
     value = float(num_bytes)
     for suffix in ("Ei", "Pi", "Ti", "Gi", "Mi", "Ki"):
         factor = _BINARY[suffix]

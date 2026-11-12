@@ -3,6 +3,8 @@ import { Route, Routes } from 'react-router-dom'
 
 import SideMenu from './components/layout/SideMenu'
 import TopBar from './components/layout/TopBar'
+import { SidebarInset, SidebarProvider } from './components/ui/sidebar'
+import { TooltipProvider } from './components/ui/tooltip'
 import { fetchClusterInfo } from './lib/api'
 import { capabilityChips } from './lib/capability'
 import Overview from './pages/Overview'
@@ -26,17 +28,18 @@ export default function App() {
   const healthy = isPending ? null : !error && !!data
 
   return (
-    <div className="flex h-full">
-      <SideMenu healthy={healthy} />
+    <TooltipProvider>
+      <SidebarProvider>
+        <SideMenu healthy={healthy} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar
+        <SidebarInset className="min-w-0">
+          <TopBar
           namespace={data?.namespace}
           context={data?.context}
           chips={data ? capabilityChips(data) : []}
         />
 
-        <main className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+          <main className="min-h-0 flex-1 px-6 py-6">
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/services" element={<Services />} />
@@ -49,8 +52,9 @@ export default function App() {
             <Route path="/howto" element={<HowTo />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
-        </main>
-      </div>
-    </div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   )
 }

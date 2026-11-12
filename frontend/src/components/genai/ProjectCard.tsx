@@ -4,8 +4,8 @@ import { Link } from 'react-router-dom'
 import ProtectedBadge from '@/components/actions/ProtectedBadge'
 import WorkloadActions from '@/components/actions/WorkloadActions'
 import DualBar from '@/components/resources/DualBar'
-import Badge from '@/components/ui/Badge'
-import Card from '@/components/ui/Card'
+import StatusBadge from '@/components/common/StatusBadge'
+import Panel from '@/components/common/Panel'
 import { formatCpu, formatMemory } from '@/lib/format'
 import type { GenAiComponent, GenAiProject, Workload } from '@/lib/schemas'
 import { formatUptime } from '@/lib/uptime'
@@ -40,39 +40,39 @@ export default function ProjectCard({ project, workloads, readOnly }: Props) {
   ]
 
   return (
-    <Card className="p-4">
+    <Panel className="p-4">
       <header className="flex flex-wrap items-center gap-2">
-        <h3 className="min-w-0 text-sm font-semibold break-words text-body">
+        <h3 className="min-w-0 text-sm font-semibold break-words text-foreground">
           {project.project_name ?? 'Project not identified'}
         </h3>
         {project.db_name && (
-          <Badge tone="accent" mono title="The database this project reads and writes">
+          <StatusBadge tone="accent" mono title="The database this project reads and writes">
             <Database size={10} aria-hidden />
             {project.db_name}
-          </Badge>
+          </StatusBadge>
         )}
-        <Badge tone={status.tone}>{status.label}</Badge>
+        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
         {project.warning_count > 0 && (
-          <Badge tone="bad" title="Warning events across this project's releases">
+          <StatusBadge tone="bad" title="Warning events across this project's releases">
             <AlertTriangle size={10} aria-hidden />
             {project.warning_count}
-          </Badge>
+          </StatusBadge>
         )}
       </header>
 
       {project.status === 'retriever_only' && (
-        <p className="mt-2 text-[11px] text-muted">
+        <p className="mt-2 text-xs text-muted-foreground">
           No AutoGraph release is running for this project, so nothing is importing into it. The
           retriever below still holds its reservation.
         </p>
       )}
       {project.status === 'project_only' && (
-        <p className="mt-2 text-[11px] text-muted">
+        <p className="mt-2 text-xs text-muted-foreground">
           No retriever is running for this project, so it cannot answer a query.
         </p>
       )}
       {project.status === 'unidentified' && (
-        <p className="mt-2 text-[11px] text-muted">
+        <p className="mt-2 text-xs text-muted-foreground">
           These releases name their project through a secret or field reference, which this tool
           does not resolve. They are listed rather than guessed at.
         </p>
@@ -88,7 +88,7 @@ export default function ProjectCard({ project, workloads, readOnly }: Props) {
           />
         ))}
       </div>
-    </Card>
+    </Panel>
   )
 }
 
@@ -103,42 +103,42 @@ function ComponentRow({
 }) {
   const Icon = component.role === 'retriever' ? Search : Bot
   const name = component.name
-  const models = [component.chat_model, component.embedding_model].filter(Boolean).join(' · ')
+  const models = [component.chat_model, component.embedding_model].filter(Boolean).join(', ')
 
   return (
-    <div className="rounded-md border border-line bg-cream p-3">
+    <div className="rounded-md border border-border bg-background p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1 text-[11px] text-muted">
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
           <Icon size={12} aria-hidden />
           {ROLE_LABEL[component.role]}
         </span>
         {component.service ? (
           <Link
             to={`/services/${encodeURIComponent(component.service)}`}
-            className="font-mono text-xs break-all text-arango hover:underline"
+            className="font-mono text-xs break-all text-primary hover:underline"
           >
             {name}
           </Link>
         ) : (
-          <span className="font-mono text-xs break-all text-body">{name}</span>
+          <span className="font-mono text-xs break-all text-foreground">{name}</span>
         )}
         {workload?.desired_replicas === 0 && (
-          <Badge tone="neutral" title="Scaled to 0 replicas on purpose">
+          <StatusBadge tone="neutral" title="Scaled to 0 replicas on purpose">
             stopped
-          </Badge>
+          </StatusBadge>
         )}
         {workload && workload.desired_replicas > 0 && workload.ready_replicas === 0 && (
-          <Badge
+          <StatusBadge
             tone="bad"
             title={`Wants ${workload.desired_replicas} replica(s); none are ready`}
           >
             not ready
-          </Badge>
+          </StatusBadge>
         )}
         {component.chart_version && (
-          <Badge tone="neutral" mono>
+          <StatusBadge tone="neutral" mono>
             {component.chart_version}
-          </Badge>
+          </StatusBadge>
         )}
         <ProtectedBadge protection={component.protection} />
         {component.route_path && (
@@ -146,7 +146,7 @@ function ComponentRow({
             href={component.route_path}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 font-mono text-[11px] text-arango hover:underline"
+            className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
           >
             <ExternalLink size={10} aria-hidden />
             {component.route_path}
@@ -160,18 +160,18 @@ function ComponentRow({
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
         <dl className="grid grid-cols-3 gap-2 text-xs">
           <div>
-            <dt className="text-muted">Pods</dt>
-            <dd className="font-mono text-body">
+            <dt className="text-muted-foreground">Pods</dt>
+            <dd className="font-mono text-foreground">
               {component.ready_pods}/{component.pod_count}
             </dd>
           </div>
           <div>
-            <dt className="text-muted">Up</dt>
-            <dd className="font-mono text-body">{formatUptime(component.age_seconds)}</dd>
+            <dt className="text-muted-foreground">Up</dt>
+            <dd className="font-mono text-foreground">{formatUptime(component.age_seconds)}</dd>
           </div>
           <div>
-            <dt className="text-muted">Restarts</dt>
-            <dd className="font-mono text-body">{component.restart_count}</dd>
+            <dt className="text-muted-foreground">Restarts</dt>
+            <dd className="font-mono text-foreground">{component.restart_count}</dd>
           </div>
         </dl>
 
@@ -191,7 +191,7 @@ function ComponentRow({
         </div>
       </div>
 
-      {models && <p className="mt-2 font-mono text-[11px] text-muted">{models}</p>}
+      {models && <p className="mt-2 font-mono text-xs text-muted-foreground">{models}</p>}
     </div>
   )
 }

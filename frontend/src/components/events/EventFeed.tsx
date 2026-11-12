@@ -4,7 +4,7 @@ import type { EventItem } from '@/lib/schemas'
 
 export default function EventFeed({ events }: { events: EventItem[] }) {
   if (events.length === 0) {
-    return <p className="text-xs text-muted">No warnings recorded for this service.</p>
+    return <p className="text-xs text-muted-foreground">No warnings recorded for this service.</p>
   }
 
   return (
@@ -12,18 +12,18 @@ export default function EventFeed({ events }: { events: EventItem[] }) {
       {events.map((event, index) => (
         <li
           key={`${event.involved_name}-${event.reason}-${index}`}
-          className="rounded-md border border-pit-light bg-pit-light/30 p-3"
+          className="rounded-md border border-warning-ring bg-warning-subtle p-3"
         >
           <div className="flex items-center gap-2">
-            <AlertTriangle size={12} className="shrink-0 text-pit" aria-hidden />
-            <span className="text-xs font-medium text-pit">{event.reason ?? 'Warning'}</span>
-            {event.count > 1 && <span className="text-[11px] text-muted">×{event.count}</span>}
-            <span className="ml-auto font-mono text-[11px] text-muted">
+            <AlertTriangle size={12} className="shrink-0 text-warning-text" aria-hidden />
+            <span className="text-xs font-medium text-warning-text">{event.reason ?? 'Warning'}</span>
+            {event.count > 1 && <span className="text-xs text-muted-foreground">×{event.count}</span>}
+            <span className="ml-auto font-mono text-xs text-muted-foreground">
               {event.involved_name}
             </span>
           </div>
           {event.message && (
-            <p className="mt-1.5 font-mono text-[11px] leading-relaxed break-words text-body">
+            <p className="mt-1.5 font-mono text-xs leading-relaxed break-words text-foreground">
               {event.message}
             </p>
           )}

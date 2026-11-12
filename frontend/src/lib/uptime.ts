@@ -4,7 +4,7 @@
  */
 
 export function formatUptime(seconds: number | null): string {
-  if (seconds === null) return '—'
+  if (seconds === null) return 'n/a'
   if (seconds < 60) return `${seconds}s`
 
   const minutes = Math.floor(seconds / 60)

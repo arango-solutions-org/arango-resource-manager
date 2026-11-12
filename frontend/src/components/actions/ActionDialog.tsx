@@ -1,15 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { TriangleAlert } from 'lucide-react'
+import { useEffect, useId, useState } from 'react'
 
 import PlanDiff from '@/components/actions/PlanDiff'
-import Spinner from '@/components/ui/Spinner'
+import Loading from '@/components/common/Loading'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { fetchActor } from '@/lib/api'
 import type { ActionPlan, ActionResult } from '@/lib/schemas'
+
+/** The backend refuses shorter reasons. */
+export const MIN_REASON_LENGTH = 3
 
 interface Props {
   title: string
   confirmLabel: string
   destructive?: boolean
-  /** Runs the action. Called first with dryRun true, then for real on confirm. */
-  run: (dryRun: boolean) => Promise<ActionResult>
+  /** Runs the action. Called first as a dry run, then for real with the reason. */
+  run: (dryRun: boolean, reason?: string) => Promise<ActionResult>
   onDone: () => void
   onClose: () => void
   children?: React.ReactNode
@@ -20,11 +39,12 @@ interface Props {
  *
  * The dialog opens by running the action as a server-side dry run, so the user
  * is never asked to approve something whose consequences have not been
- * computed — and an RBAC gap or webhook rejection surfaces before they type
- * anything, not after.
+ * computed, and an RBAC gap or webhook rejection surfaces before they type
+ * anything.
  *
- * When the plan says so, confirming also requires typing the workload's name.
- * That gate is reserved for actions that stop a service serving requests.
+ * Every executed action is recorded with the signed-in user and a reason, so
+ * confirming needs one. When the plan says so, it also needs the workload's
+ * name typed out: reserved for actions that stop a service serving requests.
  */
 export default function ActionDialog({
   title,
@@ -37,10 +57,14 @@ export default function ActionDialog({
 }: Props) {
   const [plan, setPlan] = useState<ActionPlan | null>(null)
   const [blocked, setBlocked] = useState<ActionResult | null>(null)
+  const [reason, setReason] = useState('')
   const [typed, setTyped] = useState('')
   const [acknowledged, setAcknowledged] = useState(false)
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const actor = useQuery({ queryKey: ['actor'], queryFn: fetchActor, staleTime: Infinity })
+  const reasonId = useId()
+  const typedId = useId()
 
   useEffect(() => {
     let cancelled = false
@@ -58,18 +82,23 @@ export default function ActionDialog({
     return () => {
       cancelled = true
     }
+    // The dry run runs once, when the dialog opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const needsTyping = plan?.requires_typed_confirmation ?? false
+  const hasReason = reason.trim().length >= MIN_REASON_LENGTH
   const ready =
-    plan !== null && (!needsTyping || (typed === plan.name && acknowledged)) && !busy
+    plan !== null &&
+    hasReason &&
+    (!needsTyping || (typed === plan.name && acknowledged)) &&
+    !busy
 
   async function confirm() {
     setBusy(true)
     setError(null)
     try {
-      const result = await run(false)
+      const result = await run(false, reason.trim())
       if (result.blocked_reason) setBlocked(result)
       else onDone()
     } catch (err: unknown) {
@@ -80,75 +109,86 @@ export default function ActionDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" aria-label="Cancel" onClick={onClose} className="absolute inset-0 bg-skin/40" />
-      <div className="relative z-10 w-full max-w-lg space-y-4 rounded-lg border border-line bg-cream p-5 shadow-xl">
-        <h2 className="text-sm font-semibold text-body">{title}</h2>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {actor.data?.user && (
+            <DialogDescription>Recorded as {actor.data.user}</DialogDescription>
+          )}
+        </DialogHeader>
 
-        {busy && !plan && !blocked && <Spinner label="Checking what this would do…" />}
+        {busy && !plan && !blocked && <Loading label="Checking what this would do" />}
 
         {blocked && (
-          <div className="space-y-2 rounded-md border border-pit-light bg-pit-light/40 p-3">
-            <p className="text-xs font-medium text-pit">{blocked.detail}</p>
-            {blocked.remediation && <p className="text-xs text-body">{blocked.remediation}</p>}
-          </div>
+          <Alert variant="warning">
+            <TriangleAlert />
+            <AlertTitle>{blocked.detail}</AlertTitle>
+            {blocked.remediation && <AlertDescription>{blocked.remediation}</AlertDescription>}
+          </Alert>
         )}
 
         {plan && !blocked && (
-          <>
+          <div className="space-y-4">
             {children}
             <PlanDiff plan={plan} />
 
+            <Field>
+              <FieldLabel htmlFor={reasonId}>Reason</FieldLabel>
+              <Textarea
+                id={reasonId}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                maxLength={500}
+                rows={2}
+                placeholder="Freeing CPU for the Thursday demo"
+              />
+            </Field>
+
             {needsTyping && (
-              <div className="space-y-2 rounded-md border border-line bg-panel p-3">
-                <label className="block text-xs text-body">
-                  Type <span className="font-mono font-semibold">{plan.name}</span> to confirm
-                  <input
-                    value={typed}
-                    onChange={(event) => setTyped(event.target.value)}
-                    autoComplete="off"
-                    spellCheck={false}
-                    className="mt-1 w-full rounded border border-line bg-cream px-2 py-1 font-mono text-xs text-body"
-                  />
-                </label>
-                <label className="flex items-start gap-2 text-xs text-body">
+              <Field>
+                <FieldLabel htmlFor={typedId}>
+                  Type <span className="font-mono">{plan.name}</span> to confirm
+                </FieldLabel>
+                <Input
+                  id={typedId}
+                  value={typed}
+                  onChange={(event) => setTyped(event.target.value)}
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="font-mono"
+                />
+                <label className="flex items-start gap-2 text-sm text-foreground">
                   <input
                     type="checkbox"
                     checked={acknowledged}
                     onChange={(event) => setAcknowledged(event.target.checked)}
-                    className="mt-0.5 accent-arango"
+                    className="mt-0.5 size-4 accent-primary"
                   />
-                  I understand requests to this service will fail until it is restored.
+                  Requests to this service fail until it is restored.
                 </label>
-              </div>
+              </Field>
             )}
-          </>
+          </div>
         )}
 
-        {error && <p className="font-mono text-xs text-danger">{error}</p>}
+        {error && <p className="font-mono text-xs break-all text-destructive-text">{error}</p>}
 
-        <div className="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-line px-3 py-1.5 text-xs text-body hover:bg-panel"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
           {!blocked && (
-            <button
-              type="button"
+            <Button
+              variant={destructive ? 'destructive' : 'default'}
               disabled={!ready}
               onClick={confirm}
-              className={`rounded px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 ${
-                destructive ? 'bg-danger hover:brightness-90' : 'bg-arango hover:bg-arango-hover'
-              }`}
             >
-              {busy ? 'Working…' : confirmLabel}
-            </button>
+              {busy && plan ? 'Working' : confirmLabel}
+            </Button>
           )}
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

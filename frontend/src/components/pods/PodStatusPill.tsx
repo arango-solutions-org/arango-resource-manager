@@ -1,4 +1,4 @@
-import Badge, { type Tone } from '@/components/ui/Badge'
+import StatusBadge, { type Tone } from '@/components/common/StatusBadge'
 
 const PHASE_TONE: Record<string, Tone> = {
   Running: 'good',
@@ -19,8 +19,8 @@ export default function PodStatusPill({ phase, ready, readyContainers }: Props) 
   // worth noticing: the pod looks fine in `kubectl get pods` at a glance.
   const tone: Tone = phase === 'Running' && !ready ? 'warn' : (PHASE_TONE[phase] ?? 'neutral')
   return (
-    <Badge tone={tone} title={`${phase} — ${readyContainers} containers ready`}>
+    <StatusBadge tone={tone} title={`${phase}: ${readyContainers} containers ready`}>
       {phase === 'Running' ? readyContainers : phase}
-    </Badge>
+    </StatusBadge>
   )
 }

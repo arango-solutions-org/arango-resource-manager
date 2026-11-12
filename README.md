@@ -121,8 +121,45 @@ docker run --rm -p 8000:8000 -v ~/.kube:/kube:ro \
   -e ARM_KUBECONFIG=/kube/config -e ARM_KUBE_CONTEXT=<context> arango-resource-manager
 ```
 
-The action log and stopped-service replica counts are kept in a file inside the
-pod, so they do not survive a redeploy. Fix that before turning off read-only.
+## Activity log
+
+Every change made through the app is recorded with who made it and why, before
+the change is made. No record, no change: if the log cannot be written, the
+action is refused. Executing an action needs a reason (the dialog asks for
+one); dry runs need none and are not recorded.
+
+On the platform, the user comes from the platform login, verified by the
+integration sidecar, and the log is written to ArangoDB (database
+`resource_manager`, created on first use) as that user, with their own token.
+Locally, actions are attributed to `local:<ARM_DEV_USER or OS user>` and the log
+is a JSON file, unless `ARM_ARANGO_URL` points at an ArangoDB.
+
+The log is a [W3C PROV](https://www.w3.org/TR/prov-o/) graph named `provenance`:
+
+| Collection | PROV | Holds |
+|---|---|---|
+| `agents` | Agent | a person who acted |
+| `activities` | Activity | one scale, stop, restore, restart, kill or delete, with its reason |
+| `workloadStates` | Entity | a workload's replica count at one moment |
+| `workloads` | | the workload those states describe |
+| `wasAssociatedWith` | activity to agent | who did it |
+| `used` / `wasGeneratedBy` | activity to state / state to activity | the state it started from and the one it produced |
+| `wasDerivedFrom` | state to state | lineage; `drift: true` when the cluster changed outside the app |
+| `specializationOf` | state to workload | which workload a state belongs to |
+
+Restoring a stopped workload walks one step back along `wasDerivedFrom`, so the
+replica count survives redeploys. A workload's history:
+
+```aql
+LET latest = FIRST(FOR s IN workloadStates FILTER s.workload == @w SORT s.at DESC LIMIT 1 RETURN s)
+FOR state IN 0..50 OUTBOUND latest wasDerivedFrom
+  LET act = FIRST(FOR a IN 1 OUTBOUND state wasGeneratedBy RETURN a)
+  LET who = FIRST(FOR g IN 1 OUTBOUND act wasAssociatedWith RETURN g.name)
+  RETURN { replicas: state.replicas, action: act.action, who, why: act.reason, at: state.at }
+```
+
+The PROV tests run against a real ArangoDB (`tests/test_arango_log.py`); CI
+starts one, and locally they are skipped unless `ARM_TEST_ARANGO_URL` is set.
 
 ## License
 

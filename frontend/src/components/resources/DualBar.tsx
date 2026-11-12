@@ -12,19 +12,19 @@ export default function DualBar({ label, value, total, format }: Props) {
 
   return (
     <div className="space-y-1">
-      <div className="flex items-baseline justify-between font-mono text-[11px]">
-        <span className="text-muted">{label}</span>
-        <span className="text-body">
+      <div className="flex items-baseline justify-between font-mono text-xs">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="text-foreground">
           {format(value)} / {format(total)}
-          <span className="ml-1 text-muted">{total ? `${pct}%` : ''}</span>
+          <span className="ml-1 text-muted-foreground">{total ? `${pct}%` : ''}</span>
         </span>
       </div>
       <div
         role="img"
         aria-label={`${label}: ${format(value)} of ${format(total)}`}
-        className="h-1.5 w-full overflow-hidden rounded-full border border-line bg-panel"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
       >
-        <div className="h-full bg-arango" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
       </div>
     </div>
   )

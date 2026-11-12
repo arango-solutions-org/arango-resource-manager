@@ -12,13 +12,30 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # A real ArangoDB for the activity log's PROV graph tests (tests/test_arango_log.py).
+    services:
+      arangodb:
+        image: arangodb/arangodb:3.12.4
+        env:
+          ARANGO_ROOT_PASSWORD: ci-only
+        ports: ['8529:8529']
+    env:
+      ARM_TEST_ARANGO_URL: http://localhost:8529
+      ARM_TEST_ARANGO_PASSWORD: ci-only
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
       - run: uv sync
-      # All four run entirely against recorded fixtures: no cluster required.
+      - name: Wait for ArangoDB
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf -u root:ci-only http://localhost:8529/_api/version && exit 0
+            sleep 2
+          done
+          exit 1
+      # Recorded fixtures plus the ArangoDB service above: no cluster required.
       - name: Lint
         run: make lint
       - name: Typecheck

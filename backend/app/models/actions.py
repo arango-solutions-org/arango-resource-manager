@@ -28,6 +28,9 @@ class BlockedReason(StrEnum):
     TIER_IMMUTABLE = "tier_immutable"
     NOT_FOUND = "not_found"
     INVALID = "invalid"
+    REASON_REQUIRED = "reason_required"
+    UNAUTHENTICATED = "unauthenticated"
+    LOG_UNAVAILABLE = "log_unavailable"
 
 
 class TerminatingPod(BaseModel):
@@ -86,16 +89,22 @@ class ScaleRequest(BaseModel):
     name: str
     replicas: int = Field(ge=0, le=500)
     dry_run: bool = True
+    reason: str | None = Field(default=None, max_length=500)
+    """Why. Required to execute; ignored on a dry run."""
 
 
 class WorkloadRequest(BaseModel):
     kind: str = "Deployment"
     name: str
     dry_run: bool = True
+    reason: str | None = Field(default=None, max_length=500)
+    """Why. Required to execute; ignored on a dry run."""
 
 
 class PodDeleteRequest(BaseModel):
     dry_run: bool = True
+    reason: str | None = Field(default=None, max_length=500)
+    """Why. Required to execute; ignored on a dry run."""
     force: bool = False
     container: str | None = None
     """Named only so the plan can say which container the user pointed at.
@@ -104,12 +113,16 @@ class PodDeleteRequest(BaseModel):
 
 class ServiceKillRequest(BaseModel):
     dry_run: bool = True
+    reason: str | None = Field(default=None, max_length=500)
+    """Why. Required to execute; ignored on a dry run."""
 
 
 class DatabaseScaleRequest(BaseModel):
     tier: str
     count: int = Field(ge=0, le=64)
     dry_run: bool = True
+    reason: str | None = Field(default=None, max_length=500)
+    """Why. Required to execute; ignored on a dry run."""
 
 
 class ActionRecord(BaseModel):
@@ -121,4 +134,7 @@ class ActionRecord(BaseModel):
     to_replicas: int | None = None
     dry_run: bool = False
     result: str = "ok"
+    """ok, error, or pending (started and never finished: the process died mid-action)."""
     detail: str | None = None
+    actor: str | None = None
+    reason: str | None = None

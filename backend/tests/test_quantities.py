@@ -82,7 +82,7 @@ def test_add_optional_distinguishes_unset_from_zero() -> None:
 
 
 def test_format_cpu() -> None:
-    assert format_cpu(None) == "—"
+    assert format_cpu(None) == "n/a"
     assert format_cpu(0) == "0"
     assert format_cpu(0.003) == "3m"
     assert format_cpu(0.25) == "250m"
@@ -91,7 +91,7 @@ def test_format_cpu() -> None:
 
 
 def test_format_memory() -> None:
-    assert format_memory(None) == "—"
+    assert format_memory(None) == "n/a"
     assert format_memory(512 * 1024**2) == "512Mi"
     assert format_memory(1024**3) == "1Gi"
     assert format_memory(int(1.5 * 1024**3)) == "1.5Gi"

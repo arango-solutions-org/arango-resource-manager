@@ -3,9 +3,9 @@ import { useState } from 'react'
 
 import PodDrawer from '@/components/pods/PodDrawer'
 import PodTable from '@/components/pods/PodTable'
-import EmptyState from '@/components/ui/EmptyState'
-import ErrorPanel from '@/components/ui/ErrorPanel'
-import Spinner from '@/components/ui/Spinner'
+import EmptyState from '@/components/common/EmptyState'
+import ErrorPanel from '@/components/common/ErrorPanel'
+import Loading from '@/components/common/Loading'
 import { fetchClusterInfo, fetchPods, type PodQuery } from '@/lib/api'
 
 type SortKey = NonNullable<PodQuery['sort']>
@@ -32,7 +32,7 @@ export default function Pods() {
     }
   }
 
-  if (isPending) return <Spinner label="Reading pods…" />
+  if (isPending) return <Loading label="Reading pods…" />
   if (error) return <ErrorPanel title="Could not list pods" error={error} />
 
   const restarting = data.filter((p) => p.restart_count > 0).length
@@ -41,11 +41,11 @@ export default function Pods() {
   return (
     <div className="space-y-3">
       <header className="flex flex-wrap items-baseline gap-3">
-        <h2 className="text-sm font-semibold text-body">Pods</h2>
-        <p className="text-xs text-muted">
+        <h2 className="text-sm font-semibold text-foreground">Pods</h2>
+        <p className="text-xs text-muted-foreground">
           {data.length} running
-          {notReady > 0 && <span className="text-pit"> · {notReady} not ready</span>}
-          {restarting > 0 && <span> · {restarting} with restarts</span>}
+          {notReady > 0 && <span className="text-warning-text">, {notReady} not ready</span>}
+          {restarting > 0 && <span>, {restarting} with restarts</span>}
         </p>
       </header>
 

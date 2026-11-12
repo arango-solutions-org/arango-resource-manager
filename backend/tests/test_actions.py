@@ -12,12 +12,14 @@ from typing import Any
 import pytest
 
 from app.config import Settings
+from app.identity import Actor
 from app.models.actions import ActionType, BlockedReason, WorkloadTarget
 from app.models.inventory import InventorySnapshot
 from app.services import actions
 from app.services.actions import ActionBlocked
 from app.services.inventory import assemble
-from app.store.state import StateStore
+from app.store.activity import ActivityStart, Change
+from app.store.state import FileActivityLog
 from tests.conftest import fixture_items
 
 WORKER = "arangodb-file-parser-worker-default"
@@ -38,9 +40,29 @@ def snapshot() -> InventorySnapshot:
     return assemble(raw, "test-ns", Settings())
 
 
+ACTOR = Actor(user="local:tester", source="local")
+REASON = "freeing capacity for a demo"
+
+
 @pytest.fixture
-def store(tmp_path: Path) -> StateStore:
-    return StateStore(tmp_path / "state.json")
+def store(tmp_path: Path) -> FileActivityLog:
+    return FileActivityLog(tmp_path / "state.json")
+
+
+def record_stop(store: FileActivityLog, name: str, previous: int) -> None:
+    """A finished stop in the log, as if this tool had stopped `name`."""
+    activity = store.begin(
+        ActivityStart(
+            "stop",
+            "test-ns",
+            "Deployment",
+            name,
+            ACTOR,
+            REASON,
+            [Change("Deployment", name, previous, 0)],
+        )
+    )
+    store.finish(activity, ok=True)
 
 
 class FakeClients:
@@ -81,14 +103,14 @@ ENABLED = Settings(read_only=False)
 # -- Gate 1: read-only ------------------------------------------------------
 
 
-def test_read_only_blocks_every_action(snapshot: InventorySnapshot, store: StateStore) -> None:
+def test_read_only_blocks_every_action(snapshot: InventorySnapshot, store: FileActivityLog) -> None:
     """The master switch. Nothing gets past it, whatever else is configured."""
     settings = Settings(read_only=True, allow_guarded_actions=True, allow_database_scaling=True)
     plan = actions.plan_scale(snapshot, settings, "Deployment", WORKER, 2)
     clients = FakeClients()
 
     with pytest.raises(ActionBlocked) as caught:
-        actions.execute(clients, settings, store, plan, dry_run=False)  # type: ignore[arg-type]
+        actions.execute(clients, settings, store, plan, dry_run=False, actor=ACTOR, reason=REASON)  # type: ignore[arg-type]
 
     assert caught.value.reason is BlockedReason.READ_ONLY
     assert clients.calls == [], "read-only must not reach the API server at all"
@@ -103,12 +125,14 @@ def test_protection_is_reported_ahead_of_read_only(snapshot: InventorySnapshot) 
     assert caught.value.reason is BlockedReason.PROTECTED
 
 
-def test_read_only_blocks_dry_runs_too(snapshot: InventorySnapshot, store: StateStore) -> None:
+def test_read_only_blocks_dry_runs_too(snapshot: InventorySnapshot, store: FileActivityLog) -> None:
     # A dry run still issues a real API call, so it belongs behind the switch.
     plan = actions.plan_scale(snapshot, Settings(read_only=True), "Deployment", WORKER, 2)
     clients = FakeClients()
     with pytest.raises(ActionBlocked):
-        actions.execute(clients, Settings(read_only=True), store, plan, dry_run=True)  # type: ignore[arg-type]
+        actions.execute(
+            clients, Settings(read_only=True), store, plan, dry_run=True, actor=ACTOR, reason=REASON
+        )  # type: ignore[arg-type]
     assert clients.calls == []
 
 
@@ -299,14 +323,16 @@ def test_unknown_workload_is_a_clean_404(snapshot: InventorySnapshot) -> None:
 # -- Restore ----------------------------------------------------------------
 
 
-def test_restore_uses_the_recorded_count(snapshot: InventorySnapshot, store: StateStore) -> None:
-    store.record_stop("test-ns", "Deployment", WORKER, 5, "someone")
+def test_restore_uses_the_recorded_count(
+    snapshot: InventorySnapshot, store: FileActivityLog
+) -> None:
+    record_stop(store, WORKER, 5)
     plan = actions.plan_restore(snapshot, ENABLED, store, "Deployment", WORKER)
     assert plan.target_replicas == 5
     assert plan.warning is None
 
 
-def test_restore_never_invents_a_count(snapshot: InventorySnapshot, store: StateStore) -> None:
+def test_restore_never_invents_a_count(snapshot: InventorySnapshot, store: FileActivityLog) -> None:
     """If this tool did not stop it, it does not know what "before" was."""
     plan = actions.plan_restore(snapshot, ENABLED, store, "Deployment", WORKER)
     assert plan.target_replicas == 1
@@ -318,75 +344,82 @@ def test_restore_never_invents_a_count(snapshot: InventorySnapshot, store: State
 
 
 def test_dry_run_sends_dry_run_all_and_changes_nothing(
-    snapshot: InventorySnapshot, store: StateStore
+    snapshot: InventorySnapshot, store: FileActivityLog
 ) -> None:
     """The dry run is a real, authorised, non-persisting API call - not a
     client-side guess - so an RBAC gap surfaces before the user confirms."""
     plan = actions.plan_scale(snapshot, ENABLED, "Deployment", WORKER, 2)
     clients = FakeClients()
-    result = actions.execute(clients, ENABLED, store, plan, dry_run=True)  # type: ignore[arg-type]
+    result = actions.execute(
+        clients, ENABLED, store, plan, dry_run=True, actor=ACTOR, reason=REASON
+    )  # type: ignore[arg-type]
 
     assert result.executed is False
     assert result.plan and result.plan.server_dry_run == "accepted"
     call, kwargs = clients.calls[0]
     assert call == "scale_deployment"
     assert kwargs["dry_run"] == "All"
-    assert store.history() == [], "a dry run must not be logged as an action"
+    assert store.history("test-ns") == [], "a dry run must not be logged as an action"
 
 
 def test_real_scale_omits_dry_run_and_is_logged(
-    snapshot: InventorySnapshot, store: StateStore
+    snapshot: InventorySnapshot, store: FileActivityLog
 ) -> None:
     plan = actions.plan_scale(snapshot, ENABLED, "Deployment", WORKER, 2)
     clients = FakeClients()
-    result = actions.execute(clients, ENABLED, store, plan, dry_run=False)  # type: ignore[arg-type]
+    result = actions.execute(
+        clients, ENABLED, store, plan, dry_run=False, actor=ACTOR, reason=REASON
+    )  # type: ignore[arg-type]
 
     assert result.executed is True
     _, kwargs = clients.calls[0]
     assert "dry_run" not in kwargs
     assert kwargs["body"] == {"spec": {"replicas": 2}}
 
-    entry = store.history()[0]
-    assert entry["action"] == "scale"
-    assert entry["from_replicas"] == 5
-    assert entry["to_replicas"] == 2
+    entry = store.history("test-ns")[0]
+    assert entry.action == "scale"
+    assert entry.from_replicas == 5
+    assert entry.to_replicas == 2
+    assert entry.actor == "local:tester"
+    assert entry.reason == REASON
+    assert entry.result == "ok"
 
 
 def test_stop_records_the_previous_count_before_patching(
-    snapshot: InventorySnapshot, store: StateStore
+    snapshot: InventorySnapshot, store: FileActivityLog
 ) -> None:
     """Written first, so a crash mid-action still leaves a way back."""
     plan = actions.plan_scale(
         snapshot, ENABLED, "Deployment", PDF_WORKER, 0, action=ActionType.STOP
     )
-    actions.execute(FakeClients(), ENABLED, store, plan, dry_run=False)  # type: ignore[arg-type]
+    actions.execute(FakeClients(), ENABLED, store, plan, dry_run=False, actor=ACTOR, reason=REASON)  # type: ignore[arg-type]
 
-    record = store.get_stop("test-ns", "Deployment", PDF_WORKER)
+    record = store.restore_point("test-ns", "Deployment", PDF_WORKER)
     assert record is not None
-    assert record["previous_replicas"] == 25
+    assert record.previous_replicas == 25
 
 
-def test_dry_run_stop_records_nothing(snapshot: InventorySnapshot, store: StateStore) -> None:
+def test_dry_run_stop_records_nothing(snapshot: InventorySnapshot, store: FileActivityLog) -> None:
     plan = actions.plan_scale(
         snapshot, ENABLED, "Deployment", PDF_WORKER, 0, action=ActionType.STOP
     )
-    actions.execute(FakeClients(), ENABLED, store, plan, dry_run=True)  # type: ignore[arg-type]
-    assert store.get_stop("test-ns", "Deployment", PDF_WORKER) is None
+    actions.execute(FakeClients(), ENABLED, store, plan, dry_run=True, actor=ACTOR, reason=REASON)  # type: ignore[arg-type]
+    assert store.restore_point("test-ns", "Deployment", PDF_WORKER) is None
 
 
-def test_restore_clears_the_record(snapshot: InventorySnapshot, store: StateStore) -> None:
-    store.record_stop("test-ns", "Deployment", WORKER, 5, "someone")
+def test_restore_clears_the_record(snapshot: InventorySnapshot, store: FileActivityLog) -> None:
+    record_stop(store, WORKER, 5)
     plan = actions.plan_restore(snapshot, ENABLED, store, "Deployment", WORKER)
-    actions.execute(FakeClients(), ENABLED, store, plan, dry_run=False)  # type: ignore[arg-type]
-    assert store.get_stop("test-ns", "Deployment", WORKER) is None
+    actions.execute(FakeClients(), ENABLED, store, plan, dry_run=False, actor=ACTOR, reason=REASON)  # type: ignore[arg-type]
+    assert store.restore_point("test-ns", "Deployment", WORKER) is None
 
 
 def test_restart_patches_the_pod_template_annotation(
-    snapshot: InventorySnapshot, store: StateStore
+    snapshot: InventorySnapshot, store: FileActivityLog
 ) -> None:
     plan = actions.plan_restart(snapshot, ENABLED, "Deployment", WORKER)
     clients = FakeClients()
-    actions.execute(clients, ENABLED, store, plan, dry_run=False)  # type: ignore[arg-type]
+    actions.execute(clients, ENABLED, store, plan, dry_run=False, actor=ACTOR, reason=REASON)  # type: ignore[arg-type]
 
     call, kwargs = clients.calls[0]
     assert call == "patch_deployment"
@@ -395,17 +428,17 @@ def test_restart_patches_the_pod_template_annotation(
 
 
 def test_statefulsets_use_the_statefulset_endpoint(
-    snapshot: InventorySnapshot, store: StateStore
+    snapshot: InventorySnapshot, store: FileActivityLog
 ) -> None:
     sts = next(w for w in snapshot.workloads if w.kind == "StatefulSet")
     plan = actions.plan_scale(snapshot, ENABLED, "StatefulSet", sts.name, 0)
     clients = FakeClients()
-    actions.execute(clients, ENABLED, store, plan, dry_run=False)  # type: ignore[arg-type]
+    actions.execute(clients, ENABLED, store, plan, dry_run=False, actor=ACTOR, reason=REASON)  # type: ignore[arg-type]
     assert clients.calls[0][0] == "scale_sts"
 
 
 def test_delete_pod_uses_graceful_period_unless_forced(
-    snapshot: InventorySnapshot, store: StateStore
+    snapshot: InventorySnapshot, store: FileActivityLog
 ) -> None:
     pod = next(p for p in snapshot.pods if p.workload and p.workload.name == WORKER)
     clients = FakeClients()
@@ -415,13 +448,17 @@ def test_delete_pod_uses_graceful_period_unless_forced(
         store,
         actions.plan_delete_pod(snapshot, ENABLED, pod.name),
         dry_run=False,
+        actor=ACTOR,
+        reason=REASON,
     )  # type: ignore[arg-type]
     assert clients.calls[0][0] == "delete_pod"
     assert clients.calls[0][1]["grace_period_seconds"] == 30
     assert "dry_run" not in clients.calls[0][1]
 
 
-def test_force_delete_pod_uses_grace_zero(snapshot: InventorySnapshot, store: StateStore) -> None:
+def test_force_delete_pod_uses_grace_zero(
+    snapshot: InventorySnapshot, store: FileActivityLog
+) -> None:
     pod = next(p for p in snapshot.pods if p.workload and p.workload.name == WORKER)
     clients = FakeClients()
     actions.execute(
@@ -430,16 +467,18 @@ def test_force_delete_pod_uses_grace_zero(snapshot: InventorySnapshot, store: St
         store,
         actions.plan_delete_pod(snapshot, ENABLED, pod.name, force=True),
         dry_run=False,
+        actor=ACTOR,
+        reason=REASON,
     )  # type: ignore[arg-type]
     assert clients.calls[0][1]["grace_period_seconds"] == 0
 
 
 def test_kill_records_the_count_then_force_deletes_pods(
-    snapshot: InventorySnapshot, store: StateStore
+    snapshot: InventorySnapshot, store: FileActivityLog
 ) -> None:
     plan = actions.plan_kill(snapshot, ENABLED, "Deployment", WORKER)
     clients = FakeClients()
-    actions.execute(clients, ENABLED, store, plan, dry_run=False)  # type: ignore[arg-type]
+    actions.execute(clients, ENABLED, store, plan, dry_run=False, actor=ACTOR, reason=REASON)  # type: ignore[arg-type]
 
     kinds = [call for call, _ in clients.calls]
     assert kinds[0] == "scale_deployment"
@@ -448,36 +487,38 @@ def test_kill_records_the_count_then_force_deletes_pods(
     assert all(item["grace_period_seconds"] == 0 for item in deletes)
     assert clients.calls[0][1]["body"] == {"spec": {"replicas": 0}}
 
-    record = store.get_stop("test-ns", "Deployment", WORKER)
+    record = store.restore_point("test-ns", "Deployment", WORKER)
     assert record is not None
-    assert record["previous_replicas"] == 5
+    assert record.previous_replicas == 5
 
 
 def test_dry_run_kill_records_nothing_and_marks_every_call(
-    snapshot: InventorySnapshot, store: StateStore
+    snapshot: InventorySnapshot, store: FileActivityLog
 ) -> None:
     plan = actions.plan_kill(snapshot, ENABLED, "Deployment", WORKER)
     clients = FakeClients()
-    result = actions.execute(clients, ENABLED, store, plan, dry_run=True)  # type: ignore[arg-type]
+    result = actions.execute(
+        clients, ENABLED, store, plan, dry_run=True, actor=ACTOR, reason=REASON
+    )  # type: ignore[arg-type]
 
     assert result.executed is False
     assert result.plan and result.plan.server_dry_run == "accepted"
     assert all(kwargs.get("dry_run") == "All" for _, kwargs in clients.calls)
-    assert store.get_stop("test-ns", "Deployment", WORKER) is None
-    assert store.history() == []
+    assert store.restore_point("test-ns", "Deployment", WORKER) is None
+    assert store.history("test-ns") == []
 
 
 def test_kill_service_scales_each_workload_then_deletes_pods(
-    snapshot: InventorySnapshot, store: StateStore
+    snapshot: InventorySnapshot, store: FileActivityLog
 ) -> None:
     plan = actions.plan_kill_service(snapshot, ENABLED, "arangodb-file-parser")
     clients = FakeClients()
-    actions.execute(clients, ENABLED, store, plan, dry_run=False)  # type: ignore[arg-type]
+    actions.execute(clients, ENABLED, store, plan, dry_run=False, actor=ACTOR, reason=REASON)  # type: ignore[arg-type]
 
     scales = [kwargs for call, kwargs in clients.calls if call == "scale_deployment"]
     deletes = [kwargs for call, kwargs in clients.calls if call == "delete_pod"]
     assert len(scales) == 4
     assert len(deletes) == 32
     assert all(item["body"] == {"spec": {"replicas": 0}} for item in scales)
-    assert store.get_stop("test-ns", "Deployment", PDF_WORKER) is not None
-    assert store.get_stop("test-ns", "Deployment", WORKER) is not None
+    assert store.restore_point("test-ns", "Deployment", PDF_WORKER) is not None
+    assert store.restore_point("test-ns", "Deployment", WORKER) is not None

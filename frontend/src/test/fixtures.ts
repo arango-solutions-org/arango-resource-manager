@@ -52,7 +52,7 @@ export const killPlan: ActionPlan = {
   protection: { level: 'normal', reason: null, remediation: null },
   server_dry_run: 'accepted',
   requires_typed_confirmation: true,
-  warning: 'Pods are force-deleted immediately — no graceful shutdown.',
+  warning: 'Pods are force-deleted immediately, with no graceful shutdown.',
   force: true,
   targets: [
     {

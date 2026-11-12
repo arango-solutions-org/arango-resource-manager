@@ -2,16 +2,31 @@ import {
   Activity,
   BookOpen,
   Boxes,
+  CircleAlert,
+  CircleCheck,
   Container,
   Database,
   Gauge,
   LayoutDashboard,
+  LoaderCircle,
   Settings,
   Sparkles,
 } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 
-const ITEMS = [
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
+
+export const NAV_ITEMS = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/services', label: 'Services', icon: Boxes },
   { to: '/genai', label: 'GenAI', icon: Sparkles },
@@ -22,79 +37,96 @@ const ITEMS = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
-const REFERENCE = { to: '/howto', label: 'How-to', icon: BookOpen }
+export const REFERENCE_ITEM = { to: '/howto', label: 'How-to', icon: BookOpen, end: false }
 
 interface Props {
   healthy: boolean | null
 }
 
 export default function SideMenu({ healthy }: Props) {
+  const { pathname } = useLocation()
+  const active = (to: string, end?: boolean) =>
+    end ? pathname === to : pathname === to || pathname.startsWith(`${to}/`)
+
   return (
-    <nav className="flex w-16 shrink-0 flex-col items-center bg-skin py-3">
-      <img src="./avocado.svg" alt="Arango Resource Manager" className="mb-4 h-7 w-7" />
+    <Sidebar collapsible="icon" className="dark">
+      <SidebarHeader className="px-4 py-4 group-data-[collapsible=icon]:px-2">
+        <img
+          src="./arango-logo-reversed.svg"
+          alt="Arango"
+          className="h-6 w-auto self-start group-data-[collapsible=icon]:hidden"
+        />
+        <img
+          src="./arango-mark.svg"
+          alt="Arango"
+          className="hidden size-6 self-center group-data-[collapsible=icon]:block"
+        />
+      </SidebarHeader>
 
-      <ul className="flex w-full flex-1 flex-col items-center gap-1">
-        {ITEMS.map((item) => (
-          <Item key={item.to} {...item} />
-        ))}
-      </ul>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {NAV_ITEMS.map((item) => (
+                <NavItem key={item.to} {...item} isActive={active(item.to, item.end)} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-      <ul className="mb-1 w-full">
-        <Item {...REFERENCE} />
-      </ul>
-
-      <span
-        className="mt-3 h-2 w-2 rounded-full"
-        style={{
-          backgroundColor:
-            healthy === null ? '#9a9a9a' : healthy ? 'var(--color-flesh)' : 'var(--color-pit)',
-        }}
-        title={
-          healthy === null
-            ? 'Checking the namespace…'
-            : healthy
-              ? 'Connected to the namespace.'
-              : 'Cannot reach the namespace.'
-        }
-      />
-    </nav>
+      <SidebarFooter>
+        <SidebarMenu>
+          <NavItem {...REFERENCE_ITEM} isActive={active(REFERENCE_ITEM.to)} />
+          <SidebarMenuItem>
+            <Connection healthy={healthy} />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   )
 }
 
-function Item({
+function NavItem({
   to,
   label,
   icon: Icon,
   end,
+  isActive,
 }: {
   to: string
   label: string
   icon: typeof BookOpen
   end?: boolean
+  isActive: boolean
 }) {
   return (
-    <li className="w-full px-1.5">
-      <NavLink
-        to={to}
-        end={end}
-        className={({ isActive }) =>
-          [
-            'relative flex flex-col items-center gap-1 rounded-md py-2',
-            'text-[10px] leading-none text-flesh-pale transition-colors',
-            isActive ? 'bg-skin-soft' : 'hover:bg-skin-soft/70',
-          ].join(' ')
-        }
-      >
-        {({ isActive }) => (
-          <>
-            {isActive && (
-              <span className="absolute top-1 bottom-1 -left-1.5 w-[3px] rounded-r bg-flesh" />
-            )}
-            <Icon size={18} strokeWidth={1.75} aria-hidden />
-            <span>{label}</span>
-          </>
-        )}
-      </NavLink>
-    </li>
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
+        <NavLink to={to} end={end}>
+          <Icon aria-hidden />
+          <span>{label}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+}
+
+function Connection({ healthy }: { healthy: boolean | null }) {
+  const [Icon, label] =
+    healthy === null
+      ? [LoaderCircle, 'Connecting']
+      : healthy
+        ? [CircleCheck, 'Connected']
+        : [CircleAlert, 'Not connected']
+  return (
+    <div
+      role="status"
+      className="flex h-8 items-center gap-2 px-2 text-sm text-sidebar-foreground"
+      title={label}
+    >
+      <Icon className={`size-4 shrink-0 ${healthy === null ? 'animate-spin' : ''}`} aria-hidden />
+      <span className="group-data-[collapsible=icon]:hidden">{label}</span>
+    </div>
   )
 }

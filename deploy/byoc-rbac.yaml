@@ -1,0 +1,53 @@
+# Read access for the Container Manager (BYOC) deployment of this app.
+#
+# The Container Manager gives each app a service account that can only read
+# services and configmaps, so without this the app loads with empty pages.
+# Every rule here is get/list/watch: nothing in this file lets the app change
+# anything. Scaling would need its own, separately approved rules.
+#
+# The subject is the service account the Container Manager created. Check it
+# after any redeploy, since the platform derives it from the instance name:
+#   kubectl -n <ns> get deploy -o custom-columns=NAME:.metadata.name,SA:.spec.template.spec.serviceAccountName | grep resource-manager
+#
+# Apply:  kubectl -n arangodb-platform-rnd-a2lc79ac apply -f deploy/byoc-rbac.yaml
+# Verify: GET <app>/api/v1/cluster/info and check capabilities, or the app logs
+#         for "inventory.fetched" with no degraded slices.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: arango-resource-manager-read
+  namespace: arangodb-platform-rnd-a2lc79ac
+  labels:
+    app.kubernetes.io/part-of: arango-resource-manager
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, events, resourcequotas, limitranges, persistentvolumeclaims]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets, replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [metrics.k8s.io]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [platform.arangodb.com]
+    resources: [arangoplatformservices, arangoplatformcharts]
+    verbs: [get, list, watch]
+  - apiGroups: [database.arangodb.com]
+    resources: [arangodeployments]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: arango-resource-manager-read
+  namespace: arangodb-platform-rnd-a2lc79ac
+  labels:
+    app.kubernetes.io/part-of: arango-resource-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: arango-resource-manager-read
+subjects:
+  - kind: ServiceAccount
+    name: arango-user-defined-arang-resource-manager
+    namespace: arangodb-platform-rnd-a2lc79ac

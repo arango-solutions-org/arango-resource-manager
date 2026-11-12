@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 
 import ServiceCard from '@/components/services/ServiceCard'
-import EmptyState from '@/components/ui/EmptyState'
-import ErrorPanel from '@/components/ui/ErrorPanel'
-import Spinner from '@/components/ui/Spinner'
+import EmptyState from '@/components/common/EmptyState'
+import ErrorPanel from '@/components/common/ErrorPanel'
+import Loading from '@/components/common/Loading'
 import { fetchServices } from '@/lib/api'
 import type { Service } from '@/lib/schemas'
 
@@ -14,7 +14,7 @@ export default function Services() {
     refetchInterval: 10_000,
   })
 
-  if (isPending) return <Spinner label="Reading the namespace…" />
+  if (isPending) return <Loading label="Reading the namespace…" />
   if (error) return <ErrorPanel title="Could not list services" error={error} />
 
   // Platform services come from an ArangoPlatformService; the rest are things
@@ -28,10 +28,10 @@ export default function Services() {
     <div className="space-y-8">
       <section>
         <header className="mb-3 flex items-baseline gap-3">
-          <h2 className="text-sm font-semibold text-body">Platform services</h2>
-          <p className="text-xs text-muted">
+          <h2 className="text-sm font-semibold text-foreground">Platform services</h2>
+          <p className="text-xs text-muted-foreground">
             {platform.length} deployed
-            {unhealthy > 0 && <span className="text-pit"> · {unhealthy} not ready</span>}
+            {unhealthy > 0 && <span className="text-warning-text">, {unhealthy} not ready</span>}
           </p>
         </header>
         <Grid services={platform} />
@@ -40,8 +40,8 @@ export default function Services() {
       {unmanaged.length > 0 && (
         <section>
           <header className="mb-3 flex items-baseline gap-3">
-            <h2 className="text-sm font-semibold text-body">Not managed by a platform service</h2>
-            <p className="text-xs text-muted">
+            <h2 className="text-sm font-semibold text-foreground">Not managed by a platform service</h2>
+            <p className="text-xs text-muted-foreground">
               Running here, but no ArangoPlatformService claims them
             </p>
           </header>

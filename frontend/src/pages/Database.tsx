@@ -4,16 +4,16 @@ import { useState } from 'react'
 
 import ActionDialog from '@/components/actions/ActionDialog'
 import ConditionList from '@/components/services/ConditionList'
-import Badge from '@/components/ui/Badge'
-import Card from '@/components/ui/Card'
-import ErrorPanel from '@/components/ui/ErrorPanel'
-import Spinner from '@/components/ui/Spinner'
+import StatusBadge from '@/components/common/StatusBadge'
+import Panel from '@/components/common/Panel'
+import ErrorPanel from '@/components/common/ErrorPanel'
+import Loading from '@/components/common/Loading'
 import { fetchDatabase, scaleDatabase } from '@/lib/api'
 import type { Tier } from '@/lib/schemas'
 
 /**
  * The correct way to resize the cluster. Everywhere else in this app, an
- * ArangoDB member is protected and its buttons are absent — because scaling it
+ * ArangoDB member is protected and its buttons are absent, because scaling it
  * through the core Kubernetes API is reconciled straight back by the operator.
  * Here the ArangoDeployment spec is edited instead, which is what the operator
  * actually reads.
@@ -25,24 +25,24 @@ export default function Database() {
     refetchInterval: 10_000,
   })
 
-  if (isPending) return <Spinner label="Reading the database…" />
+  if (isPending) return <Loading label="Reading the database…" />
   if (error) return <ErrorPanel title="Could not read the ArangoDeployment" error={error} />
 
   return (
     <div className="max-w-4xl space-y-5">
       <header className="flex flex-wrap items-center gap-2">
-        <h2 className="text-base font-semibold text-body">{data.name}</h2>
-        <Badge tone="neutral" mono>
+        <h2 className="text-base font-semibold text-foreground">{data.name}</h2>
+        <StatusBadge tone="neutral" mono>
           {data.mode ?? 'unknown'}
-        </Badge>
-        <Badge tone={data.ready ? 'good' : 'warn'}>{data.ready ? 'ready' : 'not ready'}</Badge>
+        </StatusBadge>
+        <StatusBadge tone={data.ready ? 'good' : 'warn'}>{data.ready ? 'ready' : 'not ready'}</StatusBadge>
       </header>
 
       {!data.scaling_enabled && (
-        <p className="rounded-md border border-line bg-panel p-3 text-xs text-body">
+        <p className="rounded-md border border-border bg-card p-3 text-xs text-foreground">
           Resizing is disabled. Set{' '}
-          <code className="font-mono text-[11px]">ARM_ALLOW_DATABASE_SCALING=true</code> where the
-          API is started to enable it. Agents stay fixed regardless — see below.
+          <code className="font-mono text-xs">ARM_ALLOW_DATABASE_SCALING=true</code> where the
+          API is started to enable it. Agents stay fixed regardless (see below).
         </p>
       )}
 
@@ -52,10 +52,10 @@ export default function Database() {
         ))}
       </section>
 
-      <Card className="p-4">
-        <h3 className="mb-3 text-sm font-semibold text-body">Operator status</h3>
+      <Panel className="p-4">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Operator status</h3>
         <ConditionList conditions={data.conditions} />
-      </Card>
+      </Panel>
     </div>
   )
 }
@@ -69,22 +69,22 @@ function TierRow({ tier }: { tier: Tier }) {
   const changed = target !== tier.count
 
   return (
-    <Card className="p-4">
+    <Panel className="p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-mono text-sm text-body">{tier.name}</h3>
-        <Badge tone="neutral" mono>
+        <h3 className="font-mono text-sm text-foreground">{tier.name}</h3>
+        <StatusBadge tone="neutral" mono>
           {tier.ready}/{tier.count} ready
-        </Badge>
+        </StatusBadge>
         {immutable && (
-          <Badge tone="neutral" title={tier.note}>
+          <StatusBadge tone="neutral" title={tier.note}>
             <Lock size={11} aria-hidden />
             fixed
-          </Badge>
+          </StatusBadge>
         )}
         {tier.policy === 'drain-on-shrink' && (
-          <Badge tone="warn" title={tier.note}>
+          <StatusBadge tone="warn" title={tier.note}>
             drains on shrink
-          </Badge>
+          </StatusBadge>
         )}
 
         {!immutable && (
@@ -96,13 +96,13 @@ function TierRow({ tier }: { tier: Tier }) {
               value={target}
               disabled={!tier.scalable}
               onChange={(event) => setTarget(Number(event.target.value))}
-              className="w-16 rounded border border-line bg-cream px-2 py-1 font-mono text-xs text-body disabled:opacity-40"
+              className="w-16 rounded border border-border bg-background px-2 py-1 font-mono text-xs text-foreground disabled:opacity-40"
             />
             <button
               type="button"
               disabled={!tier.scalable || !changed}
               onClick={() => setOpen(true)}
-              className="rounded bg-arango px-2.5 py-1 text-[11px] font-medium text-white hover:bg-arango-hover disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
               Apply
             </button>
@@ -110,14 +110,14 @@ function TierRow({ tier }: { tier: Tier }) {
         )}
       </div>
 
-      <p className="mt-2 max-w-prose text-xs text-muted">{tier.note}</p>
+      <p className="mt-2 max-w-prose text-xs text-muted-foreground">{tier.note}</p>
 
       {open && (
         <ActionDialog
           title={`Scale ${tier.name} to ${target}`}
           confirmLabel={`Set ${tier.name} to ${target}`}
           destructive={target < tier.count}
-          run={(dryRun) => scaleDatabase(tier.name, target, dryRun)}
+          run={(dryRun, reason) => scaleDatabase(tier.name, target, dryRun, reason)}
           onDone={() => {
             setOpen(false)
             void queryClient.invalidateQueries()
@@ -125,6 +125,6 @@ function TierRow({ tier }: { tier: Tier }) {
           onClose={() => setOpen(false)}
         />
       )}
-    </Card>
+    </Panel>
   )
 }

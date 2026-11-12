@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
-import Card from '@/components/ui/Card'
+import Panel from '@/components/common/Panel'
 
 const SECTIONS = [
   { id: 'start', title: 'Start here' },
@@ -33,7 +33,7 @@ export default function HowTo() {
   return (
     <div className="mx-auto flex max-w-5xl gap-10">
       <nav aria-label="On this page" className="hidden w-44 shrink-0 lg:block">
-        <p className="mb-2 text-[11px] font-medium tracking-wide text-muted uppercase">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">
           On this page
         </p>
         <ol className="sticky top-0 space-y-1.5">
@@ -47,15 +47,15 @@ export default function HowTo() {
 
       <div className="min-w-0 max-w-3xl flex-1 space-y-5">
         <header>
-          <h2 className="text-base font-semibold text-body">How to use this tool</h2>
-          <p className="mt-1 max-w-prose text-xs text-muted">
+          <h2 className="text-base font-semibold text-foreground">How to use this tool</h2>
+          <p className="mt-1 max-w-prose text-xs text-muted-foreground">
             A short guide to reading the numbers and changing what is running in this namespace.
           </p>
         </header>
 
         <nav aria-label="On this page" className="lg:hidden">
-          <Card className="p-3">
-            <p className="mb-2 text-[11px] font-medium tracking-wide text-muted uppercase">
+          <Panel className="p-3">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">
               On this page
             </p>
             <ol className="flex flex-wrap gap-x-3 gap-y-1">
@@ -65,7 +65,7 @@ export default function HowTo() {
                 </li>
               ))}
             </ol>
-          </Card>
+          </Panel>
         </nav>
 
         <Section id="start" title="Start here">
@@ -134,15 +134,15 @@ export default function HowTo() {
             Every action is checked with the cluster first, so you can see what would happen before
             you confirm, including which pods would go and how long they have been running.
           </p>
-          <div className="overflow-x-auto rounded-md border border-line">
+          <div className="overflow-x-auto rounded-md border border-border">
             <table className="w-full min-w-[28rem] border-collapse text-xs">
               <thead>
-                <tr className="border-b border-line bg-cream text-left text-muted">
+                <tr className="border-b border-border bg-background text-left text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Action</th>
                   <th className="px-3 py-2 font-medium">What it does</th>
                 </tr>
               </thead>
-              <tbody className="bg-panel">
+              <tbody className="bg-card">
                 <Row name="Scale">Change the replica count, one at a time.</Row>
                 <Row name="Stop">
                   Scale to 0 and remember the previous count, so you can put it back.
@@ -298,7 +298,7 @@ function TocLink({ id, children }: { id: string; children: string }) {
       onClick={() =>
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
-      className="text-xs text-muted hover:text-arango"
+      className="text-xs text-muted-foreground hover:text-primary"
     >
       {children}
     </Link>
@@ -315,38 +315,38 @@ function Section({
   children: ReactNode
 }) {
   return (
-    <Card className="scroll-mt-2 p-4">
-      <h3 id={id} className="text-sm font-semibold text-body">
+    <Panel className="scroll-mt-2 p-4">
+      <h3 id={id} className="text-sm font-semibold text-foreground">
         {title}
       </h3>
-      <div className="mt-2 max-w-prose space-y-2 text-xs text-body [&_code]:font-mono [&_code]:text-[11px]">
+      <div className="mt-2 max-w-prose space-y-2 text-xs text-foreground [&_code]:font-mono [&_code]:text-xs">
         {children}
       </div>
-    </Card>
+    </Panel>
   )
 }
 
 function Term({ name, children }: { name: ReactNode; children: ReactNode }) {
   return (
     <div>
-      <dt className="font-medium text-body">{name}</dt>
-      <dd className="text-muted">{children}</dd>
+      <dt className="font-medium text-foreground">{name}</dt>
+      <dd className="text-muted-foreground">{children}</dd>
     </div>
   )
 }
 
 function Row({ name, children }: { name: string; children: ReactNode }) {
   return (
-    <tr className="border-b border-line/60 last:border-0">
-      <td className="px-3 py-2 align-top font-medium text-body">{name}</td>
-      <td className="px-3 py-2 text-muted">{children}</td>
+    <tr className="border-b border-border last:border-0">
+      <td className="px-3 py-2 align-top font-medium text-foreground">{name}</td>
+      <td className="px-3 py-2 text-muted-foreground">{children}</td>
     </tr>
   )
 }
 
 function Page({ to, children }: { to: string; children: ReactNode }) {
   return (
-    <Link to={to} className="font-medium text-arango hover:underline">
+    <Link to={to} className="font-medium text-primary hover:underline">
       {children}
     </Link>
   )

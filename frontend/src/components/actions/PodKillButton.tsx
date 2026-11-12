@@ -3,7 +3,7 @@ import { XCircle } from 'lucide-react'
 import { useState } from 'react'
 
 import ActionDialog from '@/components/actions/ActionDialog'
-import Tooltip from '@/components/ui/Tooltip'
+import Hint from '@/components/common/Hint'
 import { deletePod } from '@/lib/api'
 import type { Protection } from '@/lib/schemas'
 
@@ -34,14 +34,14 @@ export default function PodKillButton({
   const hint = readOnly
     ? 'Read-only mode is on (ARM_READ_ONLY). No action will run.'
     : container
-      ? `Kill container ${container} — deletes the whole pod. If the workload is at 0 replicas, it will not come back.`
+      ? `Kill container ${container}. This deletes the whole pod. If the workload is at 0 replicas, it will not come back.`
       : 'Kill this pod immediately. If the workload is at 0 replicas, nothing replaces it.'
 
   const title = container ? `Kill container ${container}` : `Kill pod ${name}`
 
   return (
     <>
-      <Tooltip label={hint}>
+      <Hint label={hint}>
         <button
           type="button"
           aria-label={title}
@@ -50,20 +50,20 @@ export default function PodKillButton({
             event.stopPropagation()
             setOpen(true)
           }}
-          className={`rounded border border-line bg-cream text-muted hover:text-danger disabled:cursor-not-allowed disabled:opacity-30 ${
+          className={`rounded border border-border bg-background text-muted-foreground hover:text-destructive-text disabled:cursor-not-allowed disabled:opacity-30 ${
             compact ? 'px-1 py-0.5' : 'px-1.5 py-1'
           }`}
         >
           <XCircle size={compact ? 11 : 12} />
         </button>
-      </Tooltip>
+      </Hint>
 
       {open && (
         <ActionDialog
           title={title}
           confirmLabel={container ? 'Kill container' : 'Kill pod'}
           destructive
-          run={(dryRun) => deletePod(name, dryRun, { force: true, container })}
+          run={(dryRun, reason) => deletePod(name, dryRun, { force: true, container, reason })}
           onDone={() => {
             setOpen(false)
             void queryClient.invalidateQueries()

@@ -5,8 +5,8 @@ import { Link } from 'react-router-dom'
 import CapacityBar from '@/components/resources/CapacityBar'
 import DualBar from '@/components/resources/DualBar'
 import StatTile from '@/components/resources/StatTile'
-import ErrorPanel from '@/components/ui/ErrorPanel'
-import Spinner from '@/components/ui/Spinner'
+import ErrorPanel from '@/components/common/ErrorPanel'
+import Loading from '@/components/common/Loading'
 import { fetchOverview, fetchWaste } from '@/lib/api'
 import { formatCpu, formatMemory, formatPercent } from '@/lib/format'
 
@@ -22,7 +22,7 @@ export default function Overview() {
     refetchInterval: 15_000,
   })
 
-  if (overview.isPending) return <Spinner label="Measuring the namespace…" />
+  if (overview.isPending) return <Loading label="Measuring the namespace…" />
   if (overview.error) return <ErrorPanel title="Could not read the namespace" error={overview.error} />
 
   const data = overview.data
@@ -98,14 +98,14 @@ export default function Overview() {
           sub={`${formatMemory(data.totals.reclaimable_memory_bytes)} of memory`}
           tone="attention"
           footer={
-            <Link to="/capacity" className="inline-flex items-center gap-1 hover:text-arango">
+            <Link to="/capacity" className="inline-flex items-center gap-1 hover:text-primary">
               reserved but unused
               <ArrowRight size={11} aria-hidden />
             </Link>
           }
         >
           {data.reclaimable_cost_per_day !== null && (
-            <p className="font-mono text-xs text-pit">
+            <p className="font-mono text-xs text-warning-text">
               ≈ ${data.reclaimable_cost_per_day.toFixed(2)}/day
             </p>
           )}
@@ -115,15 +115,15 @@ export default function Overview() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Chip label="Services" value={data.service_count}>
           {data.services_not_ready > 0 && (
-            <span className="text-pit">{data.services_not_ready} not ready</span>
+            <span className="text-warning-text">{data.services_not_ready} not ready</span>
           )}
         </Chip>
         <Chip label="Workloads" value={data.workload_count}>
-          {data.deployment_count} Deploy · {data.statefulset_count} STS
+          {data.deployment_count} Deploy, {data.statefulset_count} STS
         </Chip>
         <Chip label="Pods" value={data.pod_count}>
           {data.ready_pods} ready
-          {data.pods_with_recent_restarts > 0 && ` · ${data.pods_with_recent_restarts} restarted`}
+          {data.pods_with_recent_restarts > 0 && `, ${data.pods_with_recent_restarts} restarted`}
         </Chip>
         <Chip label="No limits set" value={data.pods_without_limits_actionable} attention>
           {/* Counting the operator-managed database here would overstate the
@@ -134,8 +134,8 @@ export default function Overview() {
       </div>
 
       {data.warning_services.length > 0 && (
-        <section className="rounded-lg border border-pit-light bg-pit-light/30 p-4">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-pit">
+        <section className="rounded-lg border border-warning-ring bg-warning-subtle p-4">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-warning-text">
             <AlertTriangle size={14} aria-hidden />
             Needs attention
           </h2>
@@ -144,7 +144,7 @@ export default function Overview() {
               <li key={name}>
                 <Link
                   to={`/services/${encodeURIComponent(name)}`}
-                  className="font-mono text-xs text-body hover:text-arango hover:underline"
+                  className="font-mono text-xs text-foreground hover:text-primary hover:underline"
                 >
                   {name}
                 </Link>
@@ -156,29 +156,29 @@ export default function Overview() {
 
       <section>
         <header className="mb-2 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-body">Most reclaimable</h2>
-          <Link to="/capacity" className="text-xs text-muted hover:text-arango">
+          <h2 className="text-sm font-semibold text-foreground">Most reclaimable</h2>
+          <Link to="/capacity" className="text-xs text-muted-foreground hover:text-primary">
             See all →
           </Link>
         </header>
         {waste.data && waste.data.length > 0 ? (
-          <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-cream">
+          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-background">
             {waste.data.map((item) => {
               // The row names a workload; the page that can act on it is its
               // service. Anything the grouping could not claim has no service
               // to open, so it stays inert rather than offering a dead link.
               const row = (
                 <>
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-body">
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
                     {item.name}
                   </span>
-                  <span className="text-[11px] text-muted">{item.replicas}×</span>
+                  <span className="text-xs text-muted-foreground">{item.replicas}×</span>
                   {item.cpu_efficiency !== null && (
-                    <span className="text-[11px] text-muted">
+                    <span className="text-xs text-muted-foreground">
                       {(item.cpu_efficiency * 100).toFixed(1)}% used
                     </span>
                   )}
-                  <span className="font-mono text-xs text-pit">
+                  <span className="font-mono text-xs text-warning-text">
                     {formatCpu(item.reclaimable_cpu_cores)} cores
                   </span>
                 </>
@@ -190,7 +190,7 @@ export default function Overview() {
                     <Link
                       to={`/services/${encodeURIComponent(item.service)}`}
                       title={`Open ${item.service}`}
-                      className="flex items-center gap-3 px-3 py-2 transition-colors hover:bg-flesh-pale/40"
+                      className="flex items-center gap-3 px-3 py-2 transition-colors hover:bg-success-subtle"
                     >
                       {row}
                     </Link>
@@ -202,7 +202,7 @@ export default function Overview() {
             })}
           </ul>
         ) : (
-          <p className="text-xs text-muted">Nothing is over-reserved.</p>
+          <p className="text-xs text-muted-foreground">Nothing is over-reserved.</p>
         )}
       </section>
     </div>
@@ -229,14 +229,14 @@ function Chip({
   return (
     <div
       className={`rounded-lg border px-3 py-2 ${
-        attention && value > 0 ? 'border-pit-light bg-pit-light/30' : 'border-line bg-panel'
+        attention && value > 0 ? 'border-warning-ring bg-warning-subtle' : 'border-border bg-card'
       }`}
     >
       <div className="flex items-baseline gap-2">
-        <span className="font-mono text-lg text-body">{value}</span>
-        <span className="text-xs text-muted">{label}</span>
+        <span className="font-mono text-lg text-foreground">{value}</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
       </div>
-      <p className="text-[11px] text-muted">{children}</p>
+      <p className="text-xs text-muted-foreground">{children}</p>
     </div>
   )
 }

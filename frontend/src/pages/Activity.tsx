@@ -1,10 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 
-import Badge from '@/components/ui/Badge'
-import EmptyState from '@/components/ui/EmptyState'
-import ErrorPanel from '@/components/ui/ErrorPanel'
-import Spinner from '@/components/ui/Spinner'
+import EmptyState from '@/components/common/EmptyState'
+import ErrorPanel from '@/components/common/ErrorPanel'
+import StatusBadge, { type Tone } from '@/components/common/StatusBadge'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { fetchHistory } from '@/lib/api'
+import type { ActionRecord } from '@/lib/schemas'
 
 const LABELS: Record<string, string> = {
   scale: 'Scaled',
@@ -17,6 +26,13 @@ const LABELS: Record<string, string> = {
   database_scale: 'Resized database',
 }
 
+/** ok and error are outcomes; pending means the process stopped mid-action. */
+const RESULT: Record<string, { tone: Tone; label?: string }> = {
+  ok: { tone: 'good' },
+  error: { tone: 'bad', label: 'Failed' },
+  pending: { tone: 'warn', label: 'Unfinished' },
+}
+
 export default function Activity() {
   const { data, error, isPending } = useQuery({
     queryKey: ['actions', 'history'],
@@ -24,48 +40,77 @@ export default function Activity() {
     refetchInterval: 15_000,
   })
 
-  if (isPending) return <Spinner />
-  if (error) return <ErrorPanel title="Could not read the action log" error={error} />
+  if (isPending) {
+    return (
+      <div className="space-y-2" role="status" aria-label="Loading activity">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    )
+  }
+  if (error) return <ErrorPanel title="Could not read the activity log" error={error} />
 
   if (data.length === 0) {
     return (
       <EmptyState
-        title="Nothing has been changed through this tool yet."
-        hint="Every scale, stop, restart and delete is recorded here, including the ones that were refused."
+        title="No changes yet"
+        hint="Every change made here is recorded with who made it and why."
       />
     )
   }
 
   return (
-    <div className="space-y-3">
-      <header>
-        <h2 className="text-sm font-semibold text-body">Activity</h2>
-        <p className="text-xs text-muted">
-          Append-only. Dry runs are not recorded — nothing changed.
-        </p>
-      </header>
-
-      <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-cream">
-        {data.map((entry, index) => (
-          <li key={`${entry.ts}-${index}`} className="flex flex-wrap items-center gap-2 px-3 py-2">
-            <Badge tone={entry.result === 'ok' ? 'good' : 'bad'}>
-              {LABELS[entry.action] ?? entry.action}
-            </Badge>
-            <span className="font-mono text-xs break-all text-body">{entry.name}</span>
-            {entry.from_replicas !== null && entry.to_replicas !== null && (
-              <span className="font-mono text-[11px] text-muted">
-                {entry.from_replicas} → {entry.to_replicas}
-              </span>
-            )}
-            <time className="ml-auto font-mono text-[11px] text-muted" dateTime={entry.ts}>
-              {new Date(entry.ts).toLocaleString()}
-            </time>
-            {entry.detail && (
-              <p className="w-full font-mono text-[11px] text-danger">{entry.detail}</p>
-            )}
-          </li>
-        ))}
-      </ul>
+    <div className="overflow-x-auto rounded-xl border border-border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>When</TableHead>
+            <TableHead>Action</TableHead>
+            <TableHead>Workload</TableHead>
+            <TableHead className="text-right">Replicas</TableHead>
+            <TableHead>Who</TableHead>
+            <TableHead>Reason</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((entry, index) => (
+            <Row key={`${entry.ts}-${index}`} entry={entry} />
+          ))}
+        </TableBody>
+      </Table>
     </div>
+  )
+}
+
+function Row({ entry }: { entry: ActionRecord }) {
+  const result = RESULT[entry.result] ?? RESULT.ok
+  const label = LABELS[entry.action] ?? entry.action
+  return (
+    <TableRow>
+      <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+        <time dateTime={entry.ts}>{new Date(entry.ts).toLocaleString()}</time>
+      </TableCell>
+      <TableCell>
+        <StatusBadge tone={result.tone}>
+          {result.label ? `${label}: ${result.label.toLowerCase()}` : label}
+        </StatusBadge>
+      </TableCell>
+      <TableCell className="font-mono text-xs">
+        {entry.name}
+        {entry.detail && (
+          <p className="mt-1 font-sans text-sm whitespace-normal text-destructive-text">
+            {entry.detail}
+          </p>
+        )}
+      </TableCell>
+      <TableCell className="text-right font-mono text-xs tabular-nums">
+        {entry.from_replicas !== null && entry.to_replicas !== null
+          ? `${entry.from_replicas} → ${entry.to_replicas}`
+          : ''}
+      </TableCell>
+      <TableCell className="whitespace-nowrap">{entry.actor ?? 'Unknown'}</TableCell>
+      <TableCell className="max-w-md whitespace-normal">{entry.reason ?? ''}</TableCell>
+    </TableRow>
   )
 }

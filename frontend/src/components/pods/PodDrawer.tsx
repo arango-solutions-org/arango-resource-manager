@@ -4,9 +4,9 @@ import { useState } from 'react'
 
 import PodKillButton from '@/components/actions/PodKillButton'
 import ProtectedBadge from '@/components/actions/ProtectedBadge'
-import Badge from '@/components/ui/Badge'
-import ErrorPanel from '@/components/ui/ErrorPanel'
-import Spinner from '@/components/ui/Spinner'
+import StatusBadge from '@/components/common/StatusBadge'
+import ErrorPanel from '@/components/common/ErrorPanel'
+import Loading from '@/components/common/Loading'
 import { fetchClusterInfo, fetchPod, fetchPodLogs } from '@/lib/api'
 import { formatCpu, formatMemory } from '@/lib/format'
 import { formatUptime } from '@/lib/uptime'
@@ -34,20 +34,20 @@ export default function PodDrawer({ name, onClose }: Props) {
         onClick={onClose}
         className="flex-1 bg-skin/25"
       />
-      <aside className="flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l border-line bg-cream shadow-xl">
-        <header className="sticky top-0 flex items-start gap-3 border-b border-line bg-cream px-5 py-4">
+      <aside className="flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l border-border bg-background shadow-xl">
+        <header className="sticky top-0 flex items-start gap-3 border-b border-border bg-background px-5 py-4">
           <div className="min-w-0 flex-1">
-            <h2 className="font-mono text-sm break-all text-body">{name}</h2>
+            <h2 className="font-mono text-sm break-all text-foreground">{name}</h2>
             {data && (
-              <p className="mt-0.5 text-xs text-muted">
-                {data.service ?? 'no service'} · {data.node ?? 'unscheduled'}
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {data.service ?? 'no service'}, {data.node ?? 'unscheduled'}
               </p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-muted hover:bg-panel hover:text-body"
+            className="rounded p-1 text-muted-foreground hover:bg-card hover:text-foreground"
             aria-label="Close pod details"
           >
             <X size={16} />
@@ -55,7 +55,7 @@ export default function PodDrawer({ name, onClose }: Props) {
         </header>
 
         <div className="flex-1 space-y-5 px-5 py-4">
-          {isPending && <Spinner label="Reading pod…" />}
+          {isPending && <Loading label="Reading pod…" />}
           {error && <ErrorPanel title="Could not read this pod" error={error} />}
           {data && <Body pod={data} readOnly={readOnly} />}
         </div>
@@ -80,10 +80,10 @@ function Body({ pod, readOnly }: { pod: PodDetail; readOnly: boolean }) {
   return (
     <>
       <section className="flex flex-wrap items-center gap-2">
-        <Badge tone={pod.ready ? 'good' : 'warn'}>{pod.phase}</Badge>
-        <Badge tone="neutral" mono>
+        <StatusBadge tone={pod.ready ? 'good' : 'warn'}>{pod.phase}</StatusBadge>
+        <StatusBadge tone="neutral" mono>
           {pod.ready_containers} ready
-        </Badge>
+        </StatusBadge>
         <ProtectedBadge protection={pod.protection} />
         <span className="ml-auto">
           <PodKillButton name={pod.name} protection={pod.protection} readOnly={readOnly} />
@@ -91,25 +91,25 @@ function Body({ pod, readOnly }: { pod: PodDetail; readOnly: boolean }) {
       </section>
 
       {pod.protection.reason && (
-        <p className="rounded-md border border-line bg-panel p-3 text-xs text-body">
+        <p className="rounded-md border border-border bg-card p-3 text-xs text-foreground">
           {pod.protection.reason}{' '}
-          <span className="text-muted">{pod.protection.remediation}</span>
+          <span className="text-muted-foreground">{pod.protection.remediation}</span>
         </p>
       )}
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Containers</h3>
+        <h3 className="mb-2 text-xs font-semibold text-muted-foreground">Containers</h3>
         <div className="space-y-2">
           {pod.container_details.map((c) => (
-            <div key={c.name} className="rounded-md border border-line bg-panel p-3">
+            <div key={c.name} className="rounded-md border border-border bg-card p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs text-body">{c.name}</span>
-                <Badge tone={c.ready ? 'good' : 'warn'}>{c.state ?? 'unknown'}</Badge>
+                <span className="font-mono text-xs text-foreground">{c.name}</span>
+                <StatusBadge tone={c.ready ? 'good' : 'warn'}>{c.state ?? 'unknown'}</StatusBadge>
                 {c.restart_count > 0 && (
-                  <Badge tone="warn" title={c.last_terminated_reason ?? undefined}>
+                  <StatusBadge tone="warn" title={c.last_terminated_reason ?? undefined}>
                     {c.restart_count} restart{c.restart_count > 1 ? 's' : ''}
-                    {c.last_terminated_reason && ` · ${c.last_terminated_reason}`}
-                  </Badge>
+                    {c.last_terminated_reason && `, ${c.last_terminated_reason}`}
+                  </StatusBadge>
                 )}
                 <span className="ml-auto">
                   <PodKillButton
@@ -121,10 +121,10 @@ function Body({ pod, readOnly }: { pod: PodDetail; readOnly: boolean }) {
                   />
                 </span>
               </div>
-              <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px] sm:grid-cols-3">
+              <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs sm:grid-cols-3">
                 <Pair
                   label="running for"
-                  value={c.started_at ? sinceLabel(c.started_at) : '—'}
+                  value={c.started_at ? sinceLabel(c.started_at) : 'n/a'}
                   hint={c.started_at ?? undefined}
                 />
                 <Pair
@@ -146,11 +146,11 @@ function Body({ pod, readOnly }: { pod: PodDetail; readOnly: boolean }) {
           ))}
         </div>
         {hasRestarts && (
-          <p className="mt-2 flex items-start gap-1.5 text-[11px] text-muted">
-            <AlertTriangle size={11} className="mt-px shrink-0 text-pit" aria-hidden />
+          <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+            <AlertTriangle size={11} className="mt-px shrink-0 text-warning-text" aria-hidden />
             {/* The distinction that hides the problem if you miss it. */}
             The pod has been up {formatUptime(pod.age_seconds)}, but a container restarted inside
-            it — so the container is younger than the pod. The previous log below is where the
+            it, so the container is younger than the pod. The previous log below is where the
             reason is written down.
           </p>
         )}
@@ -158,12 +158,12 @@ function Body({ pod, readOnly }: { pod: PodDetail; readOnly: boolean }) {
 
       <section>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h3 className="text-xs font-semibold tracking-wide text-muted uppercase">Logs</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground">Logs</h3>
           {pod.containers.length > 1 && (
             <select
               value={container}
               onChange={(event) => setContainer(event.target.value)}
-              className="rounded border border-line bg-cream px-1.5 py-0.5 font-mono text-[11px] text-body"
+              className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-xs text-foreground"
             >
               {pod.containers.map((name) => (
                 <option key={name} value={name}>
@@ -172,25 +172,25 @@ function Body({ pod, readOnly }: { pod: PodDetail; readOnly: boolean }) {
               ))}
             </select>
           )}
-          <label className="flex items-center gap-1 text-[11px] text-muted">
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">
             <input
               type="checkbox"
               checked={previous}
               onChange={(event) => setPrevious(event.target.checked)}
-              className="accent-arango"
+              className="accent-primary"
             />
             previous instance
           </label>
         </div>
 
-        {logs.isFetching && <Spinner label="Reading logs…" />}
+        {logs.isFetching && <Loading label="Reading logs…" />}
         {logs.error && (
-          <p className="rounded-md border border-pit-light bg-pit-light/30 p-3 text-xs text-body">
+          <p className="rounded-md border border-warning-ring bg-warning-subtle p-3 text-xs text-foreground">
             {logErrorMessage(logs.error)}
           </p>
         )}
         {logs.data && !logs.isFetching && (
-          <pre className="max-h-96 overflow-auto rounded-md border border-line bg-panel p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-body">
+          <pre className="max-h-96 overflow-auto rounded-md border border-border bg-card p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground">
             {logs.data}
           </pre>
         )}
@@ -202,8 +202,8 @@ function Body({ pod, readOnly }: { pod: PodDetail; readOnly: boolean }) {
 function Pair({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div title={hint}>
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-body">{value}</dd>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-foreground">{value}</dd>
     </div>
   )
 }

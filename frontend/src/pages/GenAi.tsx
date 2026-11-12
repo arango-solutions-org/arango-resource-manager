@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 
 import ProjectCard from '@/components/genai/ProjectCard'
-import EmptyState from '@/components/ui/EmptyState'
-import ErrorPanel from '@/components/ui/ErrorPanel'
-import Spinner from '@/components/ui/Spinner'
+import EmptyState from '@/components/common/EmptyState'
+import ErrorPanel from '@/components/common/ErrorPanel'
+import Loading from '@/components/common/Loading'
 import { fetchClusterInfo, fetchGenAiProjects, fetchWorkloads } from '@/lib/api'
 import { formatCpu, formatMemory } from '@/lib/format'
 import type { GenAiProject, Workload } from '@/lib/schemas'
@@ -18,7 +18,7 @@ export default function GenAi() {
   const info = useQuery({ queryKey: ['cluster', 'info'], queryFn: fetchClusterInfo })
   const readOnly = info.data?.safety.read_only ?? true
 
-  if (isPending) return <Spinner label="Reading the namespace…" />
+  if (isPending) return <Loading label="Reading the namespace…" />
   if (error) return <ErrorPanel title="Could not list GenAI projects" error={error} />
 
   const byRef = new Map<string, Workload>(
@@ -38,12 +38,12 @@ export default function GenAi() {
           hint="An AutoGraph or GraphRAG retriever release would appear on this page, paired with the project it serves."
         />
       ) : (
-        <p className="text-xs text-muted">
-          {data.length} project{data.length === 1 ? '' : 's'} · {paired.length} with a retriever
+        <p className="text-xs text-muted-foreground">
+          {data.length} project{data.length === 1 ? '' : 's'}, {paired.length} with a retriever
           {withoutProject.length > 0 && (
-            <span className="text-pit">
+            <span className="text-warning-text">
               {' '}
-              · {reserved(withoutProject, 'cpu')} CPU and {reserved(withoutProject, 'memory')} held
+             , {reserved(withoutProject, 'cpu')} CPU and {reserved(withoutProject, 'memory')} held
               by retrievers with no project service
             </span>
           )}
@@ -104,9 +104,9 @@ function Section({
   return (
     <section>
       <header className="mb-3 flex flex-wrap items-baseline gap-3">
-        <h2 className="text-sm font-semibold text-body">{title}</h2>
-        <p className="text-xs text-muted">
-          {projects.length} · {hint}
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <p className="text-xs text-muted-foreground">
+          {projects.length}, {hint}
         </p>
       </header>
       <div className="grid gap-3 xl:grid-cols-2">

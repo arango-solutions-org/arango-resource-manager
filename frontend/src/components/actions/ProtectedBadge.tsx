@@ -1,6 +1,6 @@
 import { Lock, ShieldAlert } from 'lucide-react'
 
-import Badge from '@/components/ui/Badge'
+import StatusBadge from '@/components/common/StatusBadge'
 import type { Protection } from '@/lib/schemas'
 
 /**
@@ -15,9 +15,9 @@ export default function ProtectedBadge({ protection }: { protection: Protection 
   const tooltip = [protection.reason, protection.remediation].filter(Boolean).join(' ')
 
   return (
-    <Badge tone={isProtected ? 'neutral' : 'warn'} title={tooltip}>
+    <StatusBadge tone={isProtected ? 'neutral' : 'warn'} title={tooltip}>
       {isProtected ? <Lock size={11} aria-hidden /> : <ShieldAlert size={11} aria-hidden />}
       {isProtected ? 'Protected' : 'Guarded'}
-    </Badge>
+    </StatusBadge>
   )
 }

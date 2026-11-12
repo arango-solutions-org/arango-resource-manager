@@ -2,7 +2,7 @@ import { AlertTriangle, ExternalLink } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import ProtectedBadge from '@/components/actions/ProtectedBadge'
-import Badge from '@/components/ui/Badge'
+import StatusBadge from '@/components/common/StatusBadge'
 import { formatCpu, formatMemory } from '@/lib/format'
 import type { Service } from '@/lib/schemas'
 
@@ -40,56 +40,56 @@ export default function ServiceCard({ service }: { service: Service }) {
   return (
     <Link
       to={`/services/${encodeURIComponent(service.name)}`}
-      className="block rounded-lg border border-line bg-panel p-4 transition-colors hover:border-flesh-light hover:bg-flesh-pale/40"
+      className="block rounded-lg border border-border bg-card p-4 transition-colors hover:border-success-ring hover:bg-success-subtle"
     >
       <div className="flex items-start gap-2">
-        <h3 className="min-w-0 flex-1 text-sm font-semibold break-words text-body">
+        <h3 className="min-w-0 flex-1 text-sm font-semibold break-words text-foreground">
           {service.title}
         </h3>
-        <Badge tone={state.tone} title={state.title}>
+        <StatusBadge tone={state.tone} title={state.title}>
           {state.label}
-        </Badge>
+        </StatusBadge>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {service.chart_version && (
-          <Badge tone="neutral" mono title={`Chart ${service.chart_name ?? ''}`}>
+          <StatusBadge tone="neutral" mono title={`Chart ${service.chart_name ?? ''}`}>
             {service.chart_version}
-          </Badge>
+          </StatusBadge>
         )}
         {service.version_drift && (
-          <Badge tone="warn" title={`Catalog offers ${service.catalog_version}`}>
+          <StatusBadge tone="warn" title={`Catalog offers ${service.catalog_version}`}>
             drift
-          </Badge>
+          </StatusBadge>
         )}
         <ProtectedBadge protection={service.protection} />
         {service.route_path && (
-          <Badge tone="accent" mono title={`Served at ${service.route_path}`}>
+          <StatusBadge tone="accent" mono title={`Served at ${service.route_path}`}>
             <ExternalLink size={10} aria-hidden />
             {service.route_path}
-          </Badge>
+          </StatusBadge>
         )}
       </div>
 
       <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
         <div>
-          <dt className="text-muted">Pods</dt>
-          <dd className="font-mono text-body">
+          <dt className="text-muted-foreground">Pods</dt>
+          <dd className="font-mono text-foreground">
             {service.ready_pods}/{service.pod_count}
           </dd>
         </div>
         <div>
-          <dt className="text-muted">CPU</dt>
-          <dd className="font-mono text-body">
+          <dt className="text-muted-foreground">CPU</dt>
+          <dd className="font-mono text-foreground">
             {formatCpu(usedCpu)}
-            <span className="text-muted"> / {formatCpu(reservedCpu)}</span>
+            <span className="text-muted-foreground"> / {formatCpu(reservedCpu)}</span>
           </dd>
         </div>
         <div>
-          <dt className="text-muted">Memory</dt>
-          <dd className="font-mono text-body">
+          <dt className="text-muted-foreground">Memory</dt>
+          <dd className="font-mono text-foreground">
             {formatMemory(service.resources.usage.memory_bytes)}
-            <span className="text-muted">
+            <span className="text-muted-foreground">
               {' '}
               / {formatMemory(service.resources.requests.memory_bytes)}
             </span>
@@ -98,7 +98,7 @@ export default function ServiceCard({ service }: { service: Service }) {
       </dl>
 
       {service.latest_warning && (
-        <p className="mt-3 flex items-start gap-1.5 rounded-md bg-pit-light/40 p-2 text-[11px] text-pit">
+        <p className="mt-3 flex items-start gap-1.5 rounded-md bg-warning-subtle p-2 text-xs text-warning-text">
           <AlertTriangle size={12} className="mt-px shrink-0" aria-hidden />
           <span className="line-clamp-2 break-words">{service.latest_warning}</span>
         </p>

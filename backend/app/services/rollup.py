@@ -114,7 +114,7 @@ def resolve_budget(
             int(_nice_ceiling(reserved_memory * factor / _GI) * _GI) if reserved_memory else None
         ),
         source=BudgetSource.DERIVED,
-        label="derived — set a budget in Settings",
+        label="derived: set a budget in Settings",
     )
 
 

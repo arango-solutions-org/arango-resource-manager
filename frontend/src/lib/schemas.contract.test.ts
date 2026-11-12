@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  actionRecordSchema,
   actionResultSchema,
   clusterInfoSchema,
   overviewSchema,
@@ -176,5 +177,22 @@ describe('API contract', () => {
       pods: [],
       events: [],
     })
+  })
+
+  it('accepts an activity record with who did it and why', () => {
+    const parsed = actionRecordSchema.parse({
+      ts: '2026-11-12T23:19:00+00:00',
+      action: 'stop',
+      kind: 'Deployment',
+      name: 'arangodb-file-parser-worker-pdf',
+      from_replicas: 1,
+      to_replicas: 0,
+      dry_run: false,
+      result: 'ok',
+      detail: null,
+      actor: 'paul@arangodb.com',
+      reason: 'Freeing CPU for the Thursday demo',
+    })
+    expect(parsed.actor).toBe('paul@arangodb.com')
   })
 })

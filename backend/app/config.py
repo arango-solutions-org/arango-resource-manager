@@ -58,6 +58,20 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # Activity log. Every executed action is recorded, with who did it and why,
+    # before the change is made. With an ArangoDB endpoint the log is a PROV
+    # graph in `arango_database`; without one it falls back to a local file.
+    # On the platform the endpoint is ARANGO_DEPLOYMENT_ENDPOINT and each write
+    # authenticates as the signed-in user with their forwarded token.
+    arango_url: str = ""
+    arango_database: str = "resource_manager"
+    arango_username: str = ""
+    arango_password: str = ""
+    # auto: trust ARANGO_DEPLOYMENT_CA for the injected endpoint, else the system store.
+    arango_verify_tls: str = "auto"
+    # Who local actions are attributed to when there is no platform login.
+    dev_user: str = ""
+
     # Directory holding the built frontend. Set in the container image so one
     # process serves UI and API on one origin; empty in dev, where Vite serves it.
     static_dir: str = ""
