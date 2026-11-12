@@ -58,6 +58,10 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # Directory holding the built frontend. Set in the container image so one
+    # process serves UI and API on one origin; empty in dev, where Vite serves it.
+    static_dir: str = ""
+
     @property
     def protected_owner_kind_list(self) -> list[str]:
         return _csv(self.protected_owner_kinds)

@@ -5,6 +5,9 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Relative asset URLs, so the build works under the platform's mount prefix
+  // (/_service/uds/<scope>/<name>/) as well as at "/".
+  base: './',
   resolve: {
     // Mirrors the `@/*` path in tsconfig.app.json so tsc and the bundler agree.
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

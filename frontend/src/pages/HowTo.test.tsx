@@ -49,4 +49,22 @@ describe('How-to', () => {
     expect(scrollIntoView).toHaveBeenCalled()
     expect(document.getElementById('pods')).toBeInTheDocument()
   })
+
+  it('opens a deep link at its section, without using the URL hash the router owns', () => {
+    const scrollIntoView = vi.fn()
+    HTMLElement.prototype.scrollIntoView = scrollIntoView
+
+    render(
+      <MemoryRouter initialEntries={['/howto?section=pods']}>
+        <HowTo />
+      </MemoryRouter>,
+    )
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView.mock.contexts[0]).toBe(document.getElementById('pods'))
+    expect(screen.getAllByRole('link', { name: 'Kill a pod' })[0]).toHaveAttribute(
+      'href',
+      '/howto?section=pods',
+    )
+  })
 })

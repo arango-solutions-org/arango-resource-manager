@@ -1,0 +1,14 @@
+**/.venv
+**/node_modules
+**/__pycache__
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/*.tsbuildinfo
+frontend/dist
+**/.env
+backend/.arm-state.json
+backend/tests
+.git
+.github
+.claude

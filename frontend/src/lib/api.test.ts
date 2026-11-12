@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { apiErrorMessage } from '@/lib/api'
+import { apiErrorMessage, mountBase } from '@/lib/api'
 
 describe('apiErrorMessage', () => {
   it('prefers FastAPI detail over the Axios status line', () => {
@@ -22,5 +22,21 @@ describe('apiErrorMessage', () => {
       response: { data: { status: 'Failure' } },
     })
     expect(apiErrorMessage(error)).toBe('Request failed with status code 502')
+  })
+})
+
+describe('mountBase', () => {
+  it('keeps API calls inside the platform mount', () => {
+    expect(mountBase('/_service/uds/_global/arango-resource-manager/')).toBe(
+      '/_service/uds/_global/arango-resource-manager/',
+    )
+    expect(mountBase('/_service/uds/_global/arango-resource-manager/index.html')).toBe(
+      '/_service/uds/_global/arango-resource-manager/',
+    )
+  })
+
+  it('is the site root when served locally', () => {
+    expect(mountBase('/')).toBe('/')
+    expect(mountBase('')).toBe('/')
   })
 })

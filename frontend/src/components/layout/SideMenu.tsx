@@ -31,7 +31,7 @@ interface Props {
 export default function SideMenu({ healthy }: Props) {
   return (
     <nav className="flex w-16 shrink-0 flex-col items-center bg-skin py-3">
-      <img src="/avocado.svg" alt="Arango Resource Manager" className="mb-4 h-7 w-7" />
+      <img src="./avocado.svg" alt="Arango Resource Manager" className="mb-4 h-7 w-7" />
 
       <ul className="flex w-full flex-1 flex-col items-center gap-1">
         {ITEMS.map((item) => (

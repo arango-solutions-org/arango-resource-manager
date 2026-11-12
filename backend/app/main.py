@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.api.v1.routes import api_router
@@ -38,6 +41,11 @@ app = FastAPI(
     description=(
         "See and safely manage what is running in an ArangoDB Platform Kubernetes namespace."
     ),
+    # The stock /docs page fetches /openapi.json from the site root, which misses
+    # the app when the platform mounts it under /_service/uds/.../. The route
+    # below serves the same page with a relative spec URL instead.
+    docs_url=None,
+    redoc_url=None,
 )
 
 app.add_middleware(
@@ -69,3 +77,21 @@ def handle_k8s_error(_request: Request, exc: K8sError) -> JSONResponse:
 def health() -> dict[str, str]:
     """Liveness only. It deliberately does not touch the cluster."""
     return {"status": "ok", "version": __version__}
+
+
+@app.get("/docs", include_in_schema=False)
+def docs() -> HTMLResponse:
+    """Swagger UI with a relative spec URL, so it works under a path prefix."""
+    return get_swagger_ui_html(openapi_url="openapi.json", title=f"{app.title} - API docs")
+
+
+def mount_ui(target: FastAPI, directory: str) -> None:
+    """Serve the built frontend at "/". Call it last: the mount shadows later routes."""
+    static_path = Path(directory)
+    if not (static_path / "index.html").is_file():
+        raise RuntimeError(f"ARM_STATIC_DIR={static_path} has no index.html; build the frontend")
+    target.mount("/", StaticFiles(directory=static_path, html=True), name="ui")
+
+
+if settings.static_dir:
+    mount_ui(app, settings.static_dir)

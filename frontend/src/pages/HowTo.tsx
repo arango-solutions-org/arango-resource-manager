@@ -1,5 +1,5 @@
-import { useEffect, type MouseEvent, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, type ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import Card from '@/components/ui/Card'
 
@@ -17,11 +17,17 @@ const SECTIONS = [
   { id: 'pages', title: 'The pages' },
 ] as const
 
+// The section lives in the route's query (#/howto?section=pods), not in the URL
+// hash: under hash routing the hash is the route, so "#pods" would navigate away.
+const SECTION_PARAM = 'section'
+
 export default function HowTo() {
+  const [params] = useSearchParams()
+  const linked = params.get(SECTION_PARAM)
+
+  // Deep link: scroll once, on arrival. Clicks in the contents scroll themselves.
   useEffect(() => {
-    const id = decodeURIComponent(window.location.hash.replace(/^#/, ''))
-    if (!id) return
-    document.getElementById(id)?.scrollIntoView({ block: 'start' })
+    if (linked) document.getElementById(linked)?.scrollIntoView({ block: 'start' })
   }, [])
 
   return (
@@ -283,22 +289,19 @@ export default function HowTo() {
   )
 }
 
-function jumpTo(event: MouseEvent<HTMLAnchorElement>, id: string) {
-  event.preventDefault()
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  const url = `${window.location.pathname}${window.location.search}#${id}`
-  window.history.replaceState(null, '', url)
-}
-
 function TocLink({ id, children }: { id: string; children: string }) {
   return (
-    <a
-      href={`#${id}`}
-      onClick={(event) => jumpTo(event, id)}
+    <Link
+      to={{ search: `?${SECTION_PARAM}=${encodeURIComponent(id)}` }}
+      replace
+      preventScrollReset
+      onClick={() =>
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
       className="text-xs text-muted hover:text-arango"
     >
       {children}
-    </a>
+    </Link>
   )
 }
 

@@ -31,7 +31,23 @@ import {
   type Workload,
 } from './schemas'
 
-export const http = axios.create({ baseURL: '/api/v1', timeout: 30_000 })
+/**
+ * The directory the page was served from, always ending in "/".
+ *
+ * On the Arango Platform the app lives under /_service/uds/<scope>/<name>/, and
+ * the gateway strips that prefix before the request reaches us. An absolute
+ * "/api/v1" would escape the mount and 404 at the gateway, so API calls are
+ * built from the page's own path. Hash routing keeps that path fixed while the
+ * user moves between pages. Locally it is just "/", which Vite proxies.
+ */
+export function mountBase(pathname: string): string {
+  return pathname.slice(0, pathname.lastIndexOf('/') + 1) || '/'
+}
+
+export const http = axios.create({
+  baseURL: `${mountBase(window.location.pathname)}api/v1`,
+  timeout: 30_000,
+})
 
 // Input is `unknown` so T stays the *parsed* type. Otherwise `.default()`
 // fields become `T | undefined` and ActionDialog cannot accept the result.

@@ -92,6 +92,38 @@ spec. Coordinators and gateways scale freely; shrinking dbservers warns that
 the operator must drain shards first; **agents are never scalable** — the
 agency is a RAFT quorum and changing its size after creation risks the cluster.
 
+## Deploying to the Arango Platform (BYOC)
+
+The app runs as a Container Manager app inside the namespace it manages, so the
+whole team reaches it at one URL behind their Platform login, and it reads the
+cluster through the pod's own service account.
+
+1. **Publish.** A push to `main` runs CI, and once tests pass it publishes
+   `ghcr.io/arango-solutions-org/arango-resource-manager` (`latest`, `sha-…`).
+   The first time, an org owner must make the package public, or the pull fails.
+2. **Deploy.** In the Container Manager, add an app with that image reference
+   exactly (no `https://`), container port `8000`, global scope. The image
+   defaults to `ARM_READ_ONLY=true`; set nothing else for a read-only deploy.
+3. **Grant reads.** The service account the Container Manager creates can only
+   read services and configmaps. Bind it a Role that can read pods, workloads,
+   events, pod metrics and `arangodeployments`, or the pages load empty.
+   `GET api/v1/cluster/info` lists exactly which checks pass.
+4. **Ship updates** by merging to `main`, waiting for CI, then stopping and
+   redeploying the instance.
+
+The platform mounts the app at `/_service/uds/_global/<name>/` and strips that
+prefix, so every URL the UI builds is relative (Vite `base: './'`, hash routing,
+API calls from the page's own path). To try the image locally behind a prefix:
+
+```bash
+docker build -t arango-resource-manager .
+docker run --rm -p 8000:8000 -v ~/.kube:/kube:ro \
+  -e ARM_KUBECONFIG=/kube/config -e ARM_KUBE_CONTEXT=<context> arango-resource-manager
+```
+
+The action log and stopped-service replica counts are kept in a file inside the
+pod, so they do not survive a redeploy. Fix that before turning off read-only.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
