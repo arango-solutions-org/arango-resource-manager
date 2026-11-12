@@ -13,6 +13,7 @@ describe('How-to', () => {
       <MemoryRouter>
         <SideMenu healthy />
       </MemoryRouter>,
+      { sidebar: true },
     )
 
     expect(screen.getByRole('link', { name: 'How-to' })).toHaveAttribute('href', '/howto')

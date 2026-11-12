@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 describe('Tooltip', () => {
   // An open tooltip is positioned with ResizeObserver, which jsdom lacks. This
   // crashed CI when a click happened to hover a button long enough to open one.
+  // Checked synchronously: see renderWithProviders for why no findBy here.
   it('renders open without crashing the test environment', () => {
     render(
       <TooltipProvider>
