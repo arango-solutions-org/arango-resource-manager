@@ -49,5 +49,5 @@ roleRef:
   name: arango-resource-manager-read
 subjects:
   - kind: ServiceAccount
-    name: arango-user-defined-arang-resource-manager
+    name: arango-user-defined-arango-resource-manager
     namespace: arangodb-platform-rnd-a2lc79ac

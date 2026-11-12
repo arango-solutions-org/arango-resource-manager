@@ -16,18 +16,24 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { fetchActor } from '@/lib/api'
 import type { Chip } from '@/lib/capability'
 
+import PageTabs from './PageTabs'
 import { NAV_ITEMS, REFERENCE_ITEM } from './SideMenu'
 
 interface Props {
   namespace?: string
   context?: string
   chips: Chip[]
+  /** Inside the platform UI: no sidebar to toggle, pages as tabs instead. */
+  embedded?: boolean
 }
 
 const VARIANT = { ok: 'success', off: 'outline', warn: 'warning' } as const
 
 /** Page title and breadcrumb trail for the current route. */
-function trail(pathname: string): { title: string; parent?: { to: string; label: string } } {
+function trail(pathname: string): {
+  title: string
+  parent?: { to: string; label: string }
+} {
   const items = [...NAV_ITEMS, REFERENCE_ITEM]
   const exact = items.find((item) => item.to === pathname)
   if (exact) return { title: exact.label }
@@ -36,15 +42,19 @@ function trail(pathname: string): { title: string; parent?: { to: string; label:
   return parent ? { title: leaf, parent: { to: parent.to, label: parent.label } } : { title: leaf }
 }
 
-export default function TopBar({ namespace, context, chips }: Props) {
+export default function TopBar({ namespace, context, chips, embedded = false }: Props) {
   const { pathname } = useLocation()
   const { title, parent } = trail(pathname)
-  const actor = useQuery({ queryKey: ['actor'], queryFn: fetchActor, staleTime: Infinity })
+  const actor = useQuery({
+    queryKey: ['actor'],
+    queryFn: fetchActor,
+    staleTime: Infinity,
+  })
 
   return (
-    <header className="border-b border-border px-6 pt-4 pb-6">
+    <header className={`border-b border-border px-6 pt-4 ${embedded ? '' : 'pb-6'}`}>
       <div className="flex items-center gap-2">
-        <SidebarTrigger className="-ml-2" />
+        {!embedded && <SidebarTrigger className="-ml-2" />}
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -93,6 +103,11 @@ export default function TopBar({ namespace, context, chips }: Props) {
           ))}
         </div>
       </div>
+      {embedded && (
+        <div className="mt-4">
+          <PageTabs />
+        </div>
+      )}
     </header>
   )
 }
