@@ -97,7 +97,9 @@ class FakeClients:
         self.core = Core()
 
 
-ENABLED = Settings(read_only=False)
+# These tests drive the file parser for its 25 replicas. It is part of the
+# platform, so acting on it needs the guarded override.
+ENABLED = Settings(read_only=False, allow_guarded_actions=True)
 
 
 # -- Gate 1: read-only ------------------------------------------------------
@@ -127,7 +129,9 @@ def test_protection_is_reported_ahead_of_read_only(snapshot: InventorySnapshot) 
 
 def test_read_only_blocks_dry_runs_too(snapshot: InventorySnapshot, store: FileActivityLog) -> None:
     # A dry run still issues a real API call, so it belongs behind the switch.
-    plan = actions.plan_scale(snapshot, Settings(read_only=True), "Deployment", WORKER, 2)
+    plan = actions.plan_scale(
+        snapshot, Settings(read_only=True, allow_guarded_actions=True), "Deployment", WORKER, 2
+    )
     clients = FakeClients()
     with pytest.raises(ActionBlocked):
         actions.execute(
@@ -155,7 +159,9 @@ def test_operator_owned_workloads_are_refused(snapshot: InventorySnapshot, tier:
 def test_protected_pods_cannot_be_deleted(snapshot: InventorySnapshot) -> None:
     pod = next(p for p in snapshot.pods if p.service == "arangodb-cluster")
     with pytest.raises(ActionBlocked) as caught:
-        actions.plan_delete_pod(snapshot, Settings(read_only=False), pod.name)
+        actions.plan_delete_pod(
+            snapshot, Settings(read_only=False, allow_guarded_actions=True), pod.name
+        )
     assert caught.value.reason is BlockedReason.PROTECTED
 
 
@@ -164,7 +170,7 @@ def test_protected_pods_cannot_be_deleted(snapshot: InventorySnapshot) -> None:
 
 def test_guarded_workloads_need_the_flag(snapshot: InventorySnapshot) -> None:
     with pytest.raises(ActionBlocked) as caught:
-        actions.plan_scale(snapshot, ENABLED, "Deployment", OPERATOR, 0)
+        actions.plan_scale(snapshot, Settings(read_only=False), "Deployment", OPERATOR, 0)
     assert caught.value.reason is BlockedReason.GUARDED
 
     # With the flag set it plans normally.
@@ -302,7 +308,7 @@ def test_deleting_a_leftover_pod_after_scale_to_zero_is_permanent(
 
 def test_kill_guarded_workload_needs_the_flag(snapshot: InventorySnapshot) -> None:
     with pytest.raises(ActionBlocked) as caught:
-        actions.plan_kill(snapshot, ENABLED, "Deployment", OPERATOR)
+        actions.plan_kill(snapshot, Settings(read_only=False), "Deployment", OPERATOR)
     assert caught.value.reason is BlockedReason.GUARDED
 
 
@@ -522,3 +528,10 @@ def test_kill_service_scales_each_workload_then_deletes_pods(
     assert all(item["body"] == {"spec": {"replicas": 0}} for item in scales)
     assert store.restore_point("test-ns", "Deployment", PDF_WORKER) is not None
     assert store.restore_point("test-ns", "Deployment", WORKER) is not None
+
+
+def test_a_platform_service_cannot_be_stopped_by_default(snapshot: InventorySnapshot) -> None:
+    """However idle it looks, every project depends on it."""
+    with pytest.raises(actions.ActionBlocked) as blocked:
+        actions.plan_scale(snapshot, Settings(read_only=False), "Deployment", WORKER, 0)
+    assert blocked.value.reason is BlockedReason.GUARDED

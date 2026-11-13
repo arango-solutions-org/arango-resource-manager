@@ -12,9 +12,10 @@ from app.models.resources import (
     UnboundedPod,
     WasteItem,
 )
+from app.services import activity, rollup
 from app.services import inventory as inventory_service
 from app.services import metrics as metrics_service
-from app.services import rollup
+from app.services.usage_history import history as usage_history
 
 router = APIRouter(tags=["resources"])
 
@@ -27,6 +28,7 @@ def namespace_overview(clients: ClientsDep, settings: SettingsDep) -> NamespaceO
         settings,
         quotas=snapshot.resource_quotas,
         metrics_available=metrics_service.is_available(),
+        history=usage_history,
     )
 
 
@@ -49,7 +51,13 @@ def resource_waste(
     settings: SettingsDep,
     limit: int = Query(20, ge=1, le=100),
 ) -> list[WasteItem]:
-    return rollup.waste(inventory_service.get_snapshot(clients), settings, limit=limit)
+    return rollup.waste(
+        inventory_service.get_snapshot(clients),
+        settings,
+        limit=limit,
+        history=usage_history,
+        activity=activity.get_activity(settings),
+    )
 
 
 @router.get("/resources/unbounded", response_model=list[UnboundedPod])

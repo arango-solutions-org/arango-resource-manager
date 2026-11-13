@@ -4,10 +4,14 @@ import { Link } from 'react-router-dom'
 import ProtectedBadge from '@/components/actions/ProtectedBadge'
 import CapacityBar from '@/components/resources/CapacityBar'
 import EfficiencyPill from '@/components/resources/EfficiencyPill'
+import AboutLine from '@/components/resources/AboutLine'
+import PeakNote from '@/components/resources/PeakNote'
 import StatTile from '@/components/resources/StatTile'
 import Panel from '@/components/common/Panel'
 import ErrorPanel from '@/components/common/ErrorPanel'
 import Loading from '@/components/common/Loading'
+import Hint from '@/components/common/Hint'
+import StatusBadge from '@/components/common/StatusBadge'
 import { fetchOverview, fetchUnbounded, fetchWaste } from '@/lib/api'
 import { formatCpu, formatMemory, formatPercent } from '@/lib/format'
 
@@ -44,8 +48,8 @@ export default function Capacity() {
         <p className="mt-1 max-w-prose text-xs text-muted-foreground">
           Used, reserved and limit are measured facts. The budget is a number someone chose:{' '}
           <span className="font-mono text-foreground">{data.budget.label}</span>. This credential is
-          scoped to the namespace and cannot read node capacity, so nothing here is a reading of
-          how much room the cluster actually has.
+          scoped to the namespace and cannot read node capacity, so nothing here is a reading of how
+          much room the cluster actually has.
         </p>
       </Panel>
 
@@ -77,7 +81,7 @@ export default function Capacity() {
         <StatTile
           label="Reclaimable memory"
           value={formatMemory(data.totals.reclaimable_memory_bytes)}
-          sub="reserved but unused"
+          sub="reserved, unused at peak"
           tone="attention"
         />
       </div>
@@ -107,8 +111,8 @@ export default function Capacity() {
       <section>
         <header className="mb-2 flex items-baseline gap-3">
           <h2 className="text-sm font-semibold text-foreground">Most reclaimable</h2>
-          <p className="text-xs text-muted-foreground">
-            Workloads reserving materially more than they use, worst first
+          <p className="text-xs">
+            <PeakNote watchedSeconds={data.usage_watched_seconds} />
           </p>
         </header>
         {waste.data && waste.data.length > 0 ? (
@@ -119,9 +123,9 @@ export default function Capacity() {
                   <th className="px-3 py-2 font-medium">Workload</th>
                   <th className="px-3 py-2 font-medium">Service</th>
                   <th className="px-3 py-2 text-right font-medium">Replicas</th>
-                  <th className="px-3 py-2 text-right font-medium">Used</th>
+                  <th className="px-3 py-2 text-right font-medium">Peak CPU</th>
                   <th className="px-3 py-2 text-right font-medium">Reserved</th>
-                  <th className="px-3 py-2 text-right font-medium">Efficiency</th>
+                  <th className="px-3 py-2 text-right font-medium">At peak</th>
                   <th className="px-3 py-2 text-right font-medium">Reclaimable</th>
                 </tr>
               </thead>
@@ -130,9 +134,17 @@ export default function Capacity() {
                   <tr key={item.name} className="border-b border-border last:border-0">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs break-all text-foreground">{item.name}</span>
+                        <span className="font-mono text-xs break-all text-foreground">
+                          {item.name}
+                        </span>
                         <ProtectedBadge protection={item.protection} />
+                        {item.idle && (
+                          <Hint label="No real work the whole time it was watched. Stopping it frees all of it. Shrinking its reservation would starve it when work arrives.">
+                            <StatusBadge tone="neutral">Idle</StatusBadge>
+                          </Hint>
+                        )}
                       </div>
+                      <AboutLine about={item.about} />
                     </td>
                     <td className="px-3 py-2 text-xs">
                       {item.service ? (
@@ -150,7 +162,7 @@ export default function Capacity() {
                       {item.replicas}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-foreground">
-                      {formatCpu(item.resources.usage.cpu_cores)}
+                      {formatCpu(item.peak_cpu_cores)}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
                       {formatCpu(item.resources.requests.cpu_cores)}
@@ -160,6 +172,9 @@ export default function Capacity() {
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-warning-text">
                       {formatCpu(item.reclaimable_cpu_cores)}
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {formatMemory(item.reclaimable_memory_bytes)}
+                      </span>
                       {item.cost_per_day !== null && (
                         <span className="block text-xs font-normal text-muted-foreground">
                           ${item.cost_per_day.toFixed(2)}/day

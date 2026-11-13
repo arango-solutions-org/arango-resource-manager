@@ -53,6 +53,9 @@ class GenAiComponent(BaseModel):
     age_seconds: int | None = None
     """The oldest pod's age: how long this release has actually been serving."""
 
+    created_at: str | None = None
+    """When the release was installed, which outlives any pod."""
+
     restart_count: int = 0
 
     chat_model: str | None = None

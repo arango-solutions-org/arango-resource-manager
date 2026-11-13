@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from app.models.common import Protection, ResourceTriple
+from app.models.inventory import AppInfo
 
 
 class BudgetSource(StrEnum):
@@ -85,7 +87,32 @@ class NamespaceOverview(BaseModel):
     warning_services: list[str] = Field(default_factory=list)
 
     reclaimable_cost_per_day: float | None = None
+    usage_watched_seconds: float = 0.0
+    """How long peak usage has been recorded. Reclaimable figures are only as
+    good as this window."""
+
     degraded: list[str] = Field(default_factory=list)
+
+
+class WorkloadAbout(BaseModel):
+    """What a workload is, and whether anyone has used it lately."""
+
+    category: Literal["genai", "user_app", "other"] = "other"
+    label: str | None = None
+    project_name: str | None = None
+    database: str | None = None
+    chat_model: str | None = None
+    embedding_model: str | None = None
+    app: AppInfo | None = None
+    created_at: str | None = None
+
+    activity_known: bool = False
+    """False when Prometheus does not see this workload: last used is unknown,
+    not never."""
+    last_request_at: str | None = None
+    last_change_at: str | None = None
+    """Last POST, PATCH, PUT or DELETE. For AutoGraph this is the one that
+    means someone used it; GETs are the platform UI polling."""
 
 
 class WasteItem(BaseModel):
@@ -105,6 +132,21 @@ class WasteItem(BaseModel):
     reclaimable_cpu_cores: float = 0.0
     reclaimable_memory_bytes: int = 0
     cost_per_day: float | None = None
+
+    peak_cpu_cores: float | None = None
+    peak_memory_bytes: int | None = None
+    """The highest usage seen while watching. Reclaimable is measured against
+    this, not against the current sample."""
+
+    observed_seconds: float = 0.0
+    """How long the peak was watched for. Short means a weekly job may not
+    have run yet, so the peak is a floor."""
+
+    idle: bool = False
+
+    about: WorkloadAbout = Field(default_factory=WorkloadAbout)
+    """Did almost no work the whole time it was watched. Stopping it frees all
+    of it; shrinking its reservation would starve it when work arrives."""
 
 
 class UnboundedPod(BaseModel):

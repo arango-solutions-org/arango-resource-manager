@@ -2,17 +2,25 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 from kubernetes.client.exceptions import ApiException
 
 from app.api.deps import ClientsDep
-from app.models.inventory import EventSummary
+from app.k8s.client import KubeClients
+from app.models.inventory import EventSummary, LogLine, LogSourceError, ServiceLogs
 from app.services import inventory as inventory_service
 
 router = APIRouter(tags=["events"])
 
 _LOG_TIMEOUT = 30
+
+# One request reads at most this many containers at once. A service with more
+# is narrowed by workload or container first.
+MAX_LOG_SOURCES = 24
+MAX_MERGED_LINES = 5000
 
 
 @router.get("/events", response_model=list[EventSummary])
@@ -76,6 +84,92 @@ def pod_logs(
         raise
 
     return PlainTextResponse(_decode(text) or "(this container has produced no output)")
+
+
+@router.get("/services/{name}/logs", response_model=ServiceLogs)
+def service_logs(
+    name: str,
+    clients: ClientsDep,
+    workload: str | None = None,
+    container: str | None = None,
+    tail_lines: int = Query(200, ge=1, le=2000),
+    since_seconds: int | None = Query(None, ge=1, le=7 * 24 * 3600),
+) -> ServiceLogs:
+    """Tail every container of a service and merge them by timestamp.
+
+    What `kubectl logs -l` and k9s do across pods: one timeline, each line
+    tagged with the pod and container it came from. `since_seconds` with a
+    small value is how the UI follows the log.
+    """
+    snapshot = inventory_service.get_snapshot(clients)
+    pods = [p for p in snapshot.pods if p.service == name]
+    if not pods and not any(s.name == name for s in snapshot.services):
+        raise HTTPException(404, f"No service named {name!r}.")
+    if workload:
+        pods = [p for p in pods if p.workload and p.workload.name == workload]
+
+    sources = [
+        (pod.name, each)
+        for pod in sorted(pods, key=lambda p: p.name)
+        for each in pod.containers
+        if container is None or each == container
+    ]
+    truncated = len(sources) > MAX_LOG_SOURCES
+    sources = sources[:MAX_LOG_SOURCES]
+
+    def read(source: tuple[str, str]) -> list[LogLine] | LogSourceError:
+        pod_name, container_name = source
+        try:
+            return _read_lines(clients, pod_name, container_name, tail_lines, since_seconds)
+        except ApiException as exc:
+            detail = "Pod is gone." if exc.status == 404 else _bad_request_detail(exc)
+            return LogSourceError(pod=pod_name, container=container_name, detail=detail)
+
+    result = ServiceLogs(sources=len(sources), truncated=truncated)
+    if sources:
+        with ThreadPoolExecutor(max_workers=min(8, len(sources))) as pool:
+            for outcome in pool.map(read, sources):
+                if isinstance(outcome, LogSourceError):
+                    result.errors.append(outcome)
+                else:
+                    result.lines.extend(outcome)
+
+    # ISO timestamps from one kubelet clock sort as strings. Lines with none
+    # go first rather than vanish; the sort is stable within a container.
+    result.lines.sort(key=lambda line: line.ts or "")
+    result.lines = result.lines[-MAX_MERGED_LINES:]
+    return result
+
+
+def _read_lines(
+    clients: KubeClients,
+    pod: str,
+    container: str,
+    tail_lines: int,
+    since_seconds: int | None,
+) -> list[LogLine]:
+    response = clients.core.read_namespaced_pod_log(
+        name=pod,
+        namespace=clients.namespace,
+        container=container,
+        tail_lines=tail_lines,
+        since_seconds=since_seconds,
+        timestamps=True,
+        _preload_content=False,
+        _request_timeout=_LOG_TIMEOUT,
+    )
+    return [
+        LogLine(ts=ts, pod=pod, container=container, text=text)
+        for ts, text in map(split_timestamp, _decode(response.data).splitlines())
+    ]
+
+
+def split_timestamp(line: str) -> tuple[str | None, str]:
+    """Split the kubelet's "<RFC 3339> <text>" prefix off one line."""
+    head, sep, rest = line.partition(" ")
+    if sep and len(head) >= 20 and head[4] == "-" and head[10] == "T":
+        return head, rest
+    return None, line
 
 
 def _decode(text: object) -> str:

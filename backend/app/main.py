@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import logging
+import threading
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import structlog
@@ -35,7 +38,34 @@ _configure_logging()
 log = structlog.get_logger(__name__)
 settings = get_settings()
 
+
+def _sample_usage(stop: threading.Event, interval: float) -> None:
+    """Refresh the snapshot on a timer, which records usage into the history."""
+    from app.services import inventory
+
+    while not stop.wait(interval):
+        try:
+            inventory.get_snapshot()
+        except Exception as exc:  # noqa: BLE001 - a failed sample must not kill the loop
+            log.warning("usage.sample_failed", error=str(exc))
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    stop = threading.Event()
+    if settings.usage_sample_seconds > 0:
+        threading.Thread(
+            target=_sample_usage,
+            args=(stop, settings.usage_sample_seconds),
+            name="usage-sampler",
+            daemon=True,
+        ).start()
+    yield
+    stop.set()
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Arango Resource Manager",
     version=__version__,
     description=(

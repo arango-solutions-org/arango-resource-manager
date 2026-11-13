@@ -33,9 +33,7 @@ export default function HowTo() {
   return (
     <div className="mx-auto flex max-w-5xl gap-10">
       <nav aria-label="On this page" className="hidden w-44 shrink-0 lg:block">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
-          On this page
-        </p>
+        <p className="mb-2 text-xs font-medium text-muted-foreground">On this page</p>
         <ol className="sticky top-0 space-y-1.5">
           {SECTIONS.map((section) => (
             <li key={section.id}>
@@ -55,9 +53,7 @@ export default function HowTo() {
 
         <nav aria-label="On this page" className="lg:hidden">
           <Panel className="p-3">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">
-              On this page
-            </p>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">On this page</p>
             <ol className="flex flex-wrap gap-x-3 gap-y-1">
               {SECTIONS.map((section) => (
                 <li key={section.id}>
@@ -72,8 +68,8 @@ export default function HowTo() {
           <p>
             Open <Page to="/">Overview</Page> for the big picture, then{' '}
             <Page to="/capacity">Capacity</Page> to see which workloads are holding more than they
-            use. When you want to change something, open its{' '}
-            <Page to="/services">service</Page> and use the buttons beside each workload.
+            use. When you want to change something, open its <Page to="/services">service</Page> and
+            use the buttons beside each workload.
           </p>
           <p>
             Look for a <span className="font-medium">read-only</span> chip in the top bar. While it
@@ -103,8 +99,16 @@ export default function HowTo() {
           </dl>
           <p>
             <span className="font-medium">Efficiency</span> is used divided by reserved.{' '}
-            <span className="font-medium">Reclaimable</span> is the reserved capacity a workload is
-            sitting on without using.
+            <span className="font-medium">Reclaimable</span> is the reserved capacity a workload
+            does not use even at its busiest. The app records each workload&apos;s peak while it
+            runs, so a worker that is quiet now but busy once a day is not counted as spare. The
+            peaks start over when the app restarts, and the page says how long it has watched.
+          </p>
+          <p>
+            <span className="font-medium">Idle</span> marks a workload that did no real work the
+            whole time it was watched, such as a queue worker with an empty queue. Stopping it frees
+            all of it, but work sent to it waits or fails until it is restored. Shrinking its
+            reservation instead would starve it when work arrives.
           </p>
         </Section>
 
@@ -115,12 +119,10 @@ export default function HowTo() {
               the biggest offenders listed underneath.
             </li>
             <li>
-              <Page to="/capacity">Capacity</Page> ranks every over-reserved workload and lists
-              pods running with no limit set.
+              <Page to="/capacity">Capacity</Page> ranks every over-reserved workload and lists pods
+              running with no limit set.
             </li>
-            <li>
-              Click through to the service, then scale the workload down or stop it.
-            </li>
+            <li>Click through to the service, then scale the workload down or stop it.</li>
           </ol>
           <p>
             Database members are handled separately. Resize those on the{' '}
@@ -184,8 +186,7 @@ export default function HowTo() {
         <Section id="database" title="Resize the database">
           <p>
             Use the <Page to="/database">Database</Page> page. Scale buttons stay hidden for
-            database members everywhere else in the app, because the Arango operator manages
-            them.
+            database members everywhere else in the app, because the Arango operator manages them.
           </p>
           <ul className="list-disc space-y-1.5 pl-4">
             <li>Coordinators and gateways can be scaled up or down.</li>
@@ -224,8 +225,8 @@ export default function HowTo() {
               <code>ARM_ALLOW_GUARDED_ACTIONS=true</code> is set.
             </li>
             <li>
-              <span className="font-medium">Greyed out:</span> the app is in read-only mode. Hover
-              a button to see why it is disabled.
+              <span className="font-medium">Greyed out:</span> the app is in read-only mode. Hover a
+              button to see why it is disabled.
             </li>
             <li>
               <span className="font-medium">Empty panel:</span> the credential is missing a
@@ -305,15 +306,7 @@ function TocLink({ id, children }: { id: string; children: string }) {
   )
 }
 
-function Section({
-  id,
-  title,
-  children,
-}: {
-  id: string
-  title: string
-  children: ReactNode
-}) {
+function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <Panel className="scroll-mt-2 p-4">
       <h3 id={id} className="text-sm font-semibold text-foreground">

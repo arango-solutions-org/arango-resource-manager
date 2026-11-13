@@ -88,6 +88,11 @@ class FakeCore:
                 "Bad Request",
                 f'previous terminated container "{container}" not found',
             )
+        if kwargs.get("timestamps"):
+            return _LogBody(
+                f"2026-11-13T10:00:0{len(name) % 10}.000000001Z {name} one\n"
+                f"2026-11-13T10:00:1{len(name) % 10}.000000001Z {name} two\n".encode()
+            )
         return _LogBody(b"line one\nline two\n")
 
     def delete_namespaced_pod(self, name: str, _ns: str, **kwargs: Any) -> None:

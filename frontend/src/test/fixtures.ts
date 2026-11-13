@@ -23,6 +23,8 @@ export const normalWorkload: Workload = {
   tier: null,
   pod_count: 5,
   resources: emptyResources,
+  created_at: '2026-10-19T09:12:00Z',
+  app: null,
 }
 
 export const protectedWorkload: Workload = {

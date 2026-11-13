@@ -136,8 +136,30 @@ def test_the_operator_is_guarded_not_protected(snapshot: InventorySnapshot) -> N
 
 
 def test_ordinary_workloads_stay_actionable(snapshot: InventorySnapshot) -> None:
-    workload = next(w for w in snapshot.workloads if w.name == "arangodb-file-parser-worker-pdf")
+    """Per-project instances are the things this tool exists to stop."""
+    workload = next(w for w in snapshot.workloads if w.name == "arangodb-graphrag-retriever-icnn5")
     assert workload.protection.level is ProtectionLevel.NORMAL
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "arangodb-file-parser-worker-pdf",
+        "arangodb-file-parser-orchestrator",
+        "arango-control-plane",
+        "file-manager",
+        "deployment-ml",
+    ],
+)
+def test_platform_services_are_never_taken_down(snapshot: InventorySnapshot, name: str) -> None:
+    """Declared by an ArangoPlatformService: every project depends on them."""
+    workload = next(w for w in snapshot.workloads if w.name == name)
+    assert workload.protection.level is ProtectionLevel.GUARDED
+    assert "platform" in (workload.protection.reason or "").lower()
+    # Nor can a pod of one be deleted out from under it.
+    pods = [p for p in snapshot.pods if p.workload and p.workload.name == name]
+    assert pods
+    assert all(p.protection.level is ProtectionLevel.GUARDED for p in pods)
 
 
 def test_reserved_totals_match_the_live_namespace(snapshot: InventorySnapshot) -> None:
@@ -219,3 +241,18 @@ def test_routes_are_attached_where_they_exist(snapshot: InventorySnapshot) -> No
     with_routes = [s for s in snapshot.services if s.route_path]
     assert with_routes
     assert all(s.route_path and s.route_path.startswith("/") for s in with_routes)
+
+
+def test_a_running_service_is_ready_although_hibernated_is_false() -> None:
+    """`Hibernated: False` is the healthy state; it once marked every platform service down."""
+    from app.models.inventory import Condition
+    from app.services.inventory import _service_ready
+
+    running = [
+        Condition(type="Ready", status=True),
+        Condition(type="Hibernated", status=False, message="Hibernation not requested"),
+    ]
+    assert _service_ready(running) is True
+    assert running[1].healthy is True
+    assert _service_ready([*running[:1], Condition(type="Hibernated", status=True)]) is False
+    assert _service_ready([Condition(type="ReleaseReady", status=False)]) is False

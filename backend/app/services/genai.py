@@ -188,6 +188,7 @@ def _component(
         # hour ago has still been serving for as long as its longest-lived one.
         age_seconds=max((p.age_seconds for p in pods if p.age_seconds is not None), default=None),
         restart_count=sum(pod.restart_count for pod in pods),
+        created_at=workload.created_at,
         chat_model=env.get("chat_model"),
         embedding_model=env.get("embedding_model"),
         protection=workload.protection,

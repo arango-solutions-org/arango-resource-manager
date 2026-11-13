@@ -44,7 +44,12 @@ def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FileActivityLog:
 def client(kube: FakeClients, store: FileActivityLog) -> Any:
     inventory_service.invalidate()
     metrics.invalidate()
-    mount_app(kube, settings=Settings(read_only=False, dev_user="tester"))
+    # The file parser is part of the platform; these tests use it for its
+    # replicas, so they need the guarded override.
+    mount_app(
+        kube,
+        settings=Settings(read_only=False, allow_guarded_actions=True, dev_user="tester"),
+    )
     try:
         with TestClient(app) as test_client:
             yield test_client

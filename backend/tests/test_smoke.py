@@ -183,7 +183,7 @@ def test_kill_refuses_while_read_only(client: Any) -> None:
 
 def test_kill_service_refuses_while_read_only(client: Any) -> None:
     response = client.post(
-        "/api/v1/actions/services/arangodb-file-parser/kill",
+        "/api/v1/actions/services/arangodb-graphrag-retriever/kill",
         json={"dry_run": True},
     )
     assert response.status_code == 403, f"expected a read-only refusal, got {response.text[:200]}"

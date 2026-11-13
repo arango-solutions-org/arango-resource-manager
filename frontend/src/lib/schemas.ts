@@ -41,6 +41,8 @@ export const conditionSchema = z.object({
   status: z.boolean(),
   reason: z.string().nullable(),
   message: z.string().nullable(),
+  /** In its good state. False is the good state for some, such as Hibernated. */
+  healthy: z.boolean().optional(),
 })
 
 export const eventSchema = z.object({
@@ -88,6 +90,29 @@ export const podDetailSchema = podSchema.extend({
   conditions: z.array(conditionSchema),
 })
 
+export const appInfoSchema = z.object({
+  app_name: z.string(),
+  package: z.string().nullable(),
+  package_version: z.string().nullable(),
+  runtime: z.string().nullable(),
+  image: z.string().nullable(),
+  database: z.string().nullable(),
+})
+
+export const workloadAboutSchema = z.object({
+  category: z.enum(['genai', 'user_app', 'other']),
+  label: z.string().nullable(),
+  project_name: z.string().nullable(),
+  database: z.string().nullable(),
+  chat_model: z.string().nullable(),
+  embedding_model: z.string().nullable(),
+  app: appInfoSchema.nullable(),
+  created_at: z.string().nullable(),
+  activity_known: z.boolean(),
+  last_request_at: z.string().nullable(),
+  last_change_at: z.string().nullable(),
+})
+
 export const workloadSchema = z.object({
   kind: z.string(),
   name: z.string(),
@@ -102,6 +127,8 @@ export const workloadSchema = z.object({
   tier: z.string().nullable(),
   pod_count: z.number(),
   resources: resourceTripleSchema,
+  created_at: z.string().nullable().default(null),
+  app: appInfoSchema.nullable().default(null),
 })
 
 export const serviceSchema = z.object({
@@ -146,6 +173,7 @@ export const genAiComponentSchema = z.object({
   ready_pods: z.number(),
   age_seconds: z.number().nullable(),
   restart_count: z.number(),
+  created_at: z.string().nullable().default(null),
   chat_model: z.string().nullable(),
   embedding_model: z.string().nullable(),
   protection: protectionSchema,
@@ -209,6 +237,7 @@ export const overviewSchema = z.object({
   pods_with_recent_restarts: z.number(),
   warning_services: z.array(z.string()),
   reclaimable_cost_per_day: z.number().nullable(),
+  usage_watched_seconds: z.number().default(0),
   degraded: z.array(z.string()),
 })
 
@@ -225,6 +254,25 @@ export const wasteSchema = z.object({
   reclaimable_cpu_cores: z.number(),
   reclaimable_memory_bytes: z.number(),
   cost_per_day: z.number().nullable(),
+  peak_cpu_cores: z.number().nullable().default(null),
+  peak_memory_bytes: z.number().nullable().default(null),
+  observed_seconds: z.number().default(0),
+  idle: z.boolean().default(false),
+  about: workloadAboutSchema.optional(),
+})
+
+export const logLineSchema = z.object({
+  ts: z.string().nullable(),
+  pod: z.string(),
+  container: z.string(),
+  text: z.string(),
+})
+
+export const serviceLogsSchema = z.object({
+  lines: z.array(logLineSchema),
+  errors: z.array(z.object({ pod: z.string(), container: z.string(), detail: z.string() })),
+  sources: z.number(),
+  truncated: z.boolean(),
 })
 
 export const unboundedSchema = z.object({
@@ -250,9 +298,7 @@ export const actionPlanSchema = z.object({
   namespace: z.string(),
   current_replicas: z.number().nullable(),
   target_replicas: z.number().nullable(),
-  pods_terminating: z.array(
-    z.object({ name: z.string(), age_seconds: z.number().nullable() }),
-  ),
+  pods_terminating: z.array(z.object({ name: z.string(), age_seconds: z.number().nullable() })),
   frees: resourcesOnlySchema,
   restore_to: z.number().nullable(),
   protection: protectionSchema,
@@ -333,6 +379,9 @@ export type Budget = z.infer<typeof budgetSchema>
 export type ResourceReport = z.infer<typeof resourceReportSchema>
 export type Overview = z.infer<typeof overviewSchema>
 export type Waste = z.infer<typeof wasteSchema>
+export type WorkloadAbout = z.infer<typeof workloadAboutSchema>
+export type LogLine = z.infer<typeof logLineSchema>
+export type ServiceLogs = z.infer<typeof serviceLogsSchema>
 export type Unbounded = z.infer<typeof unboundedSchema>
 export type ClusterInfo = z.infer<typeof clusterInfoSchema>
 export type Protection = z.infer<typeof protectionSchema>

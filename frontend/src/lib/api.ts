@@ -13,6 +13,8 @@ import {
   resourceReportSchema,
   unboundedSchema,
   wasteSchema,
+  serviceLogsSchema,
+  workloadAboutSchema,
   podDetailSchema,
   podSchema,
   serviceDetailSchema,
@@ -28,6 +30,8 @@ import {
   type ServiceDetail,
   type Unbounded,
   type Waste,
+  type ServiceLogs,
+  type WorkloadAbout,
   type Workload,
 } from './schemas'
 
@@ -106,7 +110,9 @@ export function fetchUnbounded(): Promise<Unbounded[]> {
   return get('/resources/unbounded', z.array(unboundedSchema))
 }
 
-export function fetchRollup(scope: 'namespace' | 'service' | 'workload'): Promise<ResourceReport[]> {
+export function fetchRollup(
+  scope: 'namespace' | 'service' | 'workload',
+): Promise<ResourceReport[]> {
   return get('/resources/rollup', z.array(resourceReportSchema), { scope })
 }
 
@@ -118,6 +124,32 @@ export interface LogQuery {
   container?: string
   tailLines?: number
   previous?: boolean
+}
+
+/** What each workload of a service is, and when it was last used. */
+export function fetchServiceAbout(name: string): Promise<Record<string, WorkloadAbout>> {
+  return get(
+    `/services/${encodeURIComponent(name)}/about`,
+    z.record(z.string(), workloadAboutSchema),
+  )
+}
+
+export interface ServiceLogQuery {
+  workload?: string
+  container?: string
+  tailLines?: number
+  /** Only lines newer than this. How the viewer follows. */
+  sinceSeconds?: number
+}
+
+/** Every container of a service, merged into one timeline. */
+export function fetchServiceLogs(name: string, query: ServiceLogQuery = {}): Promise<ServiceLogs> {
+  return get(`/services/${encodeURIComponent(name)}/logs`, serviceLogsSchema, {
+    workload: query.workload,
+    container: query.container,
+    tail_lines: query.tailLines ?? 200,
+    since_seconds: query.sinceSeconds,
+  })
 }
 
 /** Logs are plain text, so they bypass the zod boundary the JSON routes use. */

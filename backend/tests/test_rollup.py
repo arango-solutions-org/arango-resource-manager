@@ -106,15 +106,16 @@ def test_a_resource_quota_outranks_everything_and_is_not_policy() -> None:
     assert "team-quota" in budget.label
 
 
-def test_waste_ranks_the_worst_offender_first(snapshot: InventorySnapshot) -> None:
-    """25 replicas reserving far more than the few millicores they use."""
+def test_waste_lists_only_what_can_be_taken_down(snapshot: InventorySnapshot) -> None:
+    """The file parser's 25 idle replicas reserve the most, but it is part of
+    the platform, so it is never offered. Per-project instances are."""
     items = rollup.waste(snapshot, Settings())
-    assert items
-    assert items[0].name == "arangodb-file-parser-worker-pdf"
-    assert items[0].replicas == 25
-    assert items[0].reclaimable_cpu_cores > 20
-    assert items[0].cpu_efficiency is not None
-    assert items[0].cpu_efficiency < 0.05
+    names = {item.name for item in items}
+    assert "arangodb-file-parser-worker-pdf" not in names
+    assert "arango-control-plane" not in names
+    assert "arangodb-graphrag-retriever-icnn5" in names
+    assert all(item.protection.level is ProtectionLevel.NORMAL for item in items)
+    assert all(item.cpu_efficiency is not None and item.cpu_efficiency < 0.05 for item in items)
 
 
 def test_waste_is_sorted_descending(snapshot: InventorySnapshot) -> None:

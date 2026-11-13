@@ -15,7 +15,7 @@ import type { Service } from '@/lib/schemas'
  * a broken service still wants replicas and has none running. Nothing had to be
  * fetched to tell them apart; the card just had to look.
  */
-function status(service: Service) {
+export function serviceStatus(service: Service) {
   if (service.desired_replicas === 0) {
     return { label: 'stopped', tone: 'neutral' as const, title: 'Scaled to 0 replicas on purpose' }
   }
@@ -33,7 +33,7 @@ function status(service: Service) {
 }
 
 export default function ServiceCard({ service }: { service: Service }) {
-  const state = status(service)
+  const state = serviceStatus(service)
   const reservedCpu = service.resources.requests.cpu_cores
   const usedCpu = service.resources.usage.cpu_cores
 

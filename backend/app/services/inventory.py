@@ -35,6 +35,7 @@ from app.models.inventory import (
     WorkloadSummary,
 )
 from app.services import genai, metrics
+from app.services.apps import user_app_info
 from app.services.cache import TTLCache
 from app.services.grouping import (
     ARANGO_CLUSTER_KEY,
@@ -50,8 +51,14 @@ from app.services.grouping import (
     resolve_services,
     route_index,
 )
-from app.services.protection import classify_pod, classify_workload, strictest
+from app.services.protection import (
+    classify_pod,
+    classify_workload,
+    platform_protection,
+    strictest,
+)
 from app.services.quantities import parse_cpu, parse_memory
+from app.services.usage_history import history as usage_history
 
 log = structlog.get_logger(__name__)
 
@@ -332,6 +339,7 @@ def assemble(
 
     pod_index, standalone = build_pod_index(pods, raw.get("replicasets", []), protected_kinds)
     service_of = resolve_services(workload_objects, platform_services)
+    platform_owned = {name_of(svc) for svc in platform_services}
     routes = route_index(raw.get("routes", []))
     catalog = chart_index(raw.get("charts", []))
     warnings = _warning_index(raw.get("events", []))
@@ -347,6 +355,10 @@ def assemble(
         status = obj.get("status", {}) or {}
 
         protection = classify_workload(workload_name, members, settings)
+        # Exact: the workload's Helm release is the platform service itself.
+        # A per-project instance grouped under one by chart name is not.
+        if confidence == "exact" and service in platform_owned:
+            protection = strictest([protection, platform_protection(service)])
         resources = ResourceTriple()
         ref = WorkloadRef(kind=kind, name=workload_name)
 
@@ -354,6 +366,8 @@ def assemble(
             summary = build_pod_summary(
                 pod, now, settings, service=service, workload=ref, usage=usage.get(name_of(pod))
             )
+            # A pod is never more actionable than the workload it belongs to.
+            summary.protection = strictest([summary.protection, protection])
             pod_summaries.append(summary)
             resources = resources + summary.resources
 
@@ -371,6 +385,8 @@ def assemble(
                 chart_version=chart_version(obj),
                 pod_count=len(members),
                 resources=resources,
+                created_at=_iso(obj.get("metadata", {}).get("creationTimestamp")),
+                app=user_app_info(obj),
             )
         )
 
@@ -582,7 +598,7 @@ def _warning_index(events: list[dict[str, Any]]) -> dict[str, list[EventSummary]
 def _service_ready(conditions: list[Condition]) -> bool | None:
     if not conditions:
         return None
-    return all(c.status for c in conditions)
+    return all(c.healthy for c in conditions)
 
 
 def _pods_ready(pods: list[PodSummary]) -> bool | None:
@@ -626,7 +642,9 @@ def get_snapshot(clients: KubeClients | None = None) -> InventorySnapshot:
         usage = metrics.get_usage(active)
         if not metrics.is_available():
             degraded.append("metrics.k8s.io")
-        return assemble(raw, active.namespace, settings, degraded=degraded, usage=usage)
+        snapshot = assemble(raw, active.namespace, settings, degraded=degraded, usage=usage)
+        usage_history.record(snapshot)
+        return snapshot
 
     return _cache.get(load)
 

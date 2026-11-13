@@ -9,26 +9,31 @@ import type { Condition } from '@/lib/schemas'
  */
 export default function ConditionList({ conditions }: { conditions: Condition[] }) {
   if (conditions.length === 0) {
-    return <p className="text-xs text-muted-foreground">This service reports no status conditions.</p>
+    return (
+      <p className="text-xs text-muted-foreground">This service reports no status conditions.</p>
+    )
   }
 
   return (
     <ul className="space-y-1.5">
-      {conditions.map((condition) => (
-        <li key={condition.type} className="flex items-start gap-2 text-xs">
-          {condition.status ? (
-            <Check size={13} className="mt-px shrink-0 text-primary" aria-label="passing" />
-          ) : (
-            <X size={13} className="mt-px shrink-0 text-warning-text" aria-label="failing" />
-          )}
-          <span className={condition.status ? 'text-muted-foreground' : 'font-medium text-foreground'}>
-            {condition.type}
-          </span>
-          {condition.message && condition.message !== condition.type && (
-            <span className="text-muted-foreground">({condition.message})</span>
-          )}
-        </li>
-      ))}
+      {conditions.map((condition) => {
+        const ok = condition.healthy ?? condition.status
+        return (
+          <li key={condition.type} className="flex items-start gap-2 text-xs">
+            {ok ? (
+              <Check size={13} className="mt-px shrink-0 text-primary" aria-label="passing" />
+            ) : (
+              <X size={13} className="mt-px shrink-0 text-warning-text" aria-label="failing" />
+            )}
+            <span className={ok ? 'text-muted-foreground' : 'font-medium text-foreground'}>
+              {condition.type}
+            </span>
+            {condition.message && condition.message !== condition.type && (
+              <span className="text-muted-foreground">({condition.message})</span>
+            )}
+          </li>
+        )
+      })}
     </ul>
   )
 }

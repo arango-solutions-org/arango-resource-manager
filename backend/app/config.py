@@ -51,6 +51,9 @@ class Settings(BaseSettings):
 
     inventory_ttl_seconds: float = 5.0
     metrics_ttl_seconds: float = 15.0
+    # How often to sample usage while nobody has the app open, so peaks are
+    # seen. 0 turns the sampler off; requests still sample.
+    usage_sample_seconds: float = 60.0
 
     prometheus_url: str = ""
     cost_per_core_hour: float = 0.0

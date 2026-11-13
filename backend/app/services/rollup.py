@@ -35,7 +35,10 @@ from app.models.resources import (
     UnboundedPod,
     WasteItem,
 )
+from app.services.about import describe, genai_index
+from app.services.activity import Activity
 from app.services.quantities import gi_to_bytes, parse_cpu, parse_memory
+from app.services.usage_history import UsageHistory
 
 _GI = 1024**3
 _HOURS_PER_DAY = 24
@@ -46,6 +49,13 @@ MIN_AGE_FOR_WASTE_SECONDS = 3600
 
 # Below this, a workload is reserving far more than it will ever use.
 WASTE_EFFICIENCY_CEILING = 0.6
+
+# Peak CPU under this share of the request, for the whole time watched, means
+# the workload did no real work: it is waiting for some.
+IDLE_CPU_SHARE = 0.05
+
+# Less history than this and a daily job may not have run while watching.
+MIN_HISTORY_SECONDS = 24 * 3600
 
 
 def total_resources(pods: list[PodSummary]) -> ResourceTriple:
@@ -194,27 +204,59 @@ def _oldest_pod_age(snapshot: InventorySnapshot, workload: WorkloadSummary) -> i
     return max(ages, default=0)
 
 
-def waste(snapshot: InventorySnapshot, settings: Settings, limit: int = 20) -> list[WasteItem]:
-    """Workloads reserving materially more than they use, worst first.
+def _peak_or_now[T: (float, int)](now: T | None, peak: T | None) -> T | None:
+    if now is None:
+        return peak
+    if peak is None:
+        return now
+    return max(now, peak)
 
-    Protected workloads are excluded: this tool will not act on them, so
-    ranking them would be pointing at something the reader cannot fix.
+
+def waste(
+    snapshot: InventorySnapshot,
+    settings: Settings,
+    limit: int | None = 20,
+    history: UsageHistory | None = None,
+    activity: dict[str, Activity] | None = None,
+) -> list[WasteItem]:
+    """Workloads reserving materially more than they use at their peak, worst first.
+
+    Protected and guarded workloads are excluded: this tool will not take
+    them down, so ranking them would point at something nobody should touch.
+
+    Usage is the highest seen in `history`, or the current sample when there
+    is none. A single sample flatters anything that works in bursts.
     """
     items: list[WasteItem] = []
+    genai = genai_index(snapshot)
 
     for workload in snapshot.workloads:
-        if workload.protection.level is ProtectionLevel.PROTECTED:
+        if workload.protection.level is not ProtectionLevel.NORMAL:
             continue
         if _oldest_pod_age(snapshot, workload) < MIN_AGE_FOR_WASTE_SECONDS:
             continue
 
         resources = workload.resources
-        reclaimable_cpu = resources.reclaimable_cpu_cores
-        reclaimable_memory = resources.reclaimable_memory_bytes
+        peak = history.peak(workload.kind, workload.name) if history else None
+        used_cpu = _peak_or_now(resources.usage.cpu_cores, peak.cpu_cores if peak else None)
+        used_memory = _peak_or_now(
+            resources.usage.memory_bytes, peak.memory_bytes if peak else None
+        )
+        reserved_cpu = resources.requests.cpu_cores
+        reserved_memory = resources.requests.memory_bytes
+
+        reclaimable_cpu = (
+            None if used_cpu is None or reserved_cpu is None else max(0.0, reserved_cpu - used_cpu)
+        )
+        reclaimable_memory = (
+            None
+            if used_memory is None or reserved_memory is None
+            else max(0, reserved_memory - used_memory)
+        )
         if reclaimable_cpu is None and reclaimable_memory is None:
             continue
 
-        efficiency = resources.cpu_efficiency
+        efficiency = used_cpu / reserved_cpu if used_cpu is not None and reserved_cpu else None
         if efficiency is not None and efficiency >= WASTE_EFFICIENCY_CEILING:
             continue
 
@@ -228,12 +270,21 @@ def waste(snapshot: InventorySnapshot, settings: Settings, limit: int = 20) -> l
                 pod_count=workload.pod_count,
                 resources=resources,
                 cpu_efficiency=efficiency,
-                memory_efficiency=resources.memory_efficiency,
+                memory_efficiency=(
+                    used_memory / reserved_memory
+                    if used_memory is not None and reserved_memory
+                    else None
+                ),
                 reclaimable_cpu_cores=reclaimable_cpu or 0.0,
                 reclaimable_memory_bytes=reclaimable_memory or 0,
                 cost_per_day=_cost_per_day(
                     reclaimable_cpu or 0.0, reclaimable_memory or 0, settings
                 ),
+                peak_cpu_cores=used_cpu,
+                peak_memory_bytes=used_memory,
+                observed_seconds=peak.observed_seconds if peak else 0.0,
+                idle=efficiency is not None and efficiency < IDLE_CPU_SHARE,
+                about=describe(workload, genai, activity),
             )
         )
 
@@ -241,7 +292,7 @@ def waste(snapshot: InventorySnapshot, settings: Settings, limit: int = 20) -> l
         key=lambda item: (item.reclaimable_cpu_cores, item.reclaimable_memory_bytes),
         reverse=True,
     )
-    return items[:limit]
+    return items if limit is None else items[:limit]
 
 
 def unbounded_pods(snapshot: InventorySnapshot) -> list[UnboundedPod]:
@@ -276,9 +327,22 @@ def overview(
     settings: Settings,
     quotas: list[dict[str, Any]] | None = None,
     metrics_available: bool = True,
+    history: UsageHistory | None = None,
 ) -> NamespaceOverview:
     totals = namespace_report(snapshot)
     budget = resolve_budget(totals.resources, settings, quotas)
+
+    # The headline is the sum of what the reclaimable list shows, so the two
+    # agree. Reserved-minus-now across the namespace would count protected
+    # workloads nobody can touch here, and bursty ones at their quietest.
+    if totals.reclaimable_cpu_cores is not None or totals.reclaimable_memory_bytes is not None:
+        candidates = waste(snapshot, settings, limit=None, history=history)
+        totals = totals.model_copy(
+            update={
+                "reclaimable_cpu_cores": sum(i.reclaimable_cpu_cores for i in candidates),
+                "reclaimable_memory_bytes": sum(i.reclaimable_memory_bytes for i in candidates),
+            }
+        )
 
     reserved_cpu = totals.resources.requests.cpu_cores
     reserved_memory = totals.resources.requests.memory_bytes
@@ -318,5 +382,6 @@ def overview(
             totals.reclaimable_memory_bytes or 0,
             settings,
         ),
+        usage_watched_seconds=history.watched_seconds() if history else 0.0,
         degraded=snapshot.degraded,
     )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from kubernetes.client.exceptions import ApiException
 
-from app.api.v1.events import _bad_request_detail, _decode
+from app.api.v1.events import _bad_request_detail, _decode, split_timestamp
 
 
 def test_bytes_are_decoded_not_stringified() -> None:
@@ -48,3 +48,13 @@ def test_missing_previous_log_is_explained() -> None:
 
 def test_unknown_bad_request_falls_back() -> None:
     assert "rejected" in _bad_request_detail(_api_exception("something else"))
+
+
+def test_kubelet_timestamps_are_split_off() -> None:
+    assert split_timestamp("2026-11-13T10:00:01.123456789Z hello world") == (
+        "2026-11-13T10:00:01.123456789Z",
+        "hello world",
+    )
+    # A line that does not start with a timestamp is kept whole.
+    assert split_timestamp("plain line") == (None, "plain line")
+    assert split_timestamp("") == (None, "")

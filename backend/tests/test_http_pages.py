@@ -135,3 +135,25 @@ def test_pod_logs_return_plain_text(client: Any) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")
     assert "line one" in response.text
+
+
+def test_service_logs_merge_every_container_by_time(client: Any) -> None:
+    logs = _json(client, f"/api/v1/services/{FILE_PARSER}/logs", tail_lines=50)
+    assert logs["sources"] > 1
+    assert logs["errors"] == []
+    stamps = [line["ts"] for line in logs["lines"]]
+    assert all(stamps) and stamps == sorted(stamps)
+    assert len({line["pod"] for line in logs["lines"]}) > 1
+
+
+def test_service_logs_narrow_to_one_workload_and_container(client: Any) -> None:
+    logs = _json(
+        client, f"/api/v1/services/{FILE_PARSER}/logs", workload=WORKER, container="worker"
+    )
+    assert logs["lines"]
+    assert {line["container"] for line in logs["lines"]} == {"worker"}
+    assert all(line["pod"].startswith(WORKER) for line in logs["lines"])
+
+
+def test_service_logs_for_an_unknown_service_are_404(client: Any) -> None:
+    assert client.get("/api/v1/services/no-such-service/logs").status_code == 404

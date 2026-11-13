@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from app.models.common import Protection, ResourceTriple, WorkloadRef
 from app.models.genai import GenAiProject
+
+# Conditions where False is the healthy state. The platform reports
+# `Hibernated: False, "Hibernation not requested"` on every running service.
+INVERTED_CONDITIONS = frozenset({"Hibernated"})
 
 
 class Condition(BaseModel):
@@ -15,6 +19,12 @@ class Condition(BaseModel):
     status: bool
     reason: str | None = None
     message: str | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def healthy(self) -> bool:
+        """Whether this condition is in its good state, whichever way round that is."""
+        return self.status != (self.type in INVERTED_CONDITIONS)
 
 
 class ContainerSummary(BaseModel):
@@ -57,6 +67,19 @@ class PodDetail(PodSummary):
     conditions: list[Condition] = Field(default_factory=list)
 
 
+class AppInfo(BaseModel):
+    """A user-defined (BYOC) app, as the Container Manager deployed it."""
+
+    app_name: str
+    package: str | None = None
+    package_version: str | None = None
+    runtime: str | None = None
+    """"Python 3.12 package", "Node 22 package", or "Container image"."""
+    image: str | None = None
+    """Only for a custom image; packages run on a shared base image."""
+    database: str | None = None
+
+
 class WorkloadSummary(BaseModel):
     kind: str
     name: str
@@ -77,6 +100,12 @@ class WorkloadSummary(BaseModel):
 
     pod_count: int = 0
     resources: ResourceTriple = Field(default_factory=ResourceTriple)
+
+    created_at: str | None = None
+    """When the Deployment or StatefulSet was created: when it was installed."""
+
+    app: AppInfo | None = None
+    """Set for user-defined apps."""
 
 
 class EventSummary(BaseModel):
@@ -155,3 +184,28 @@ class InventorySnapshot(BaseModel):
 
     degraded: list[str] = Field(default_factory=list)
     """Slices that could not be read - the UI says so rather than showing zero."""
+
+
+class LogLine(BaseModel):
+    ts: str | None
+    """RFC 3339 with nanoseconds, as the kubelet wrote it. None when it had none."""
+    pod: str
+    container: str
+    text: str
+
+
+class LogSourceError(BaseModel):
+    pod: str
+    container: str
+    detail: str
+
+
+class ServiceLogs(BaseModel):
+    """Every container of a service, merged into one timeline, oldest first."""
+
+    lines: list[LogLine] = Field(default_factory=list)
+    errors: list[LogSourceError] = Field(default_factory=list)
+    sources: int = 0
+    """How many containers were read."""
+    truncated: bool = False
+    """More containers than one request reads; narrow by workload or container."""

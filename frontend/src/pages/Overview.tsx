@@ -7,6 +7,8 @@ import DualBar from '@/components/resources/DualBar'
 import StatTile from '@/components/resources/StatTile'
 import ErrorPanel from '@/components/common/ErrorPanel'
 import Loading from '@/components/common/Loading'
+import StatusBadge from '@/components/common/StatusBadge'
+import AboutLine from '@/components/resources/AboutLine'
 import { fetchOverview, fetchWaste } from '@/lib/api'
 import { formatCpu, formatMemory, formatPercent } from '@/lib/format'
 
@@ -23,7 +25,8 @@ export default function Overview() {
   })
 
   if (overview.isPending) return <Loading label="Measuring the namespace…" />
-  if (overview.error) return <ErrorPanel title="Could not read the namespace" error={overview.error} />
+  if (overview.error)
+    return <ErrorPanel title="Could not read the namespace" error={overview.error} />
 
   const data = overview.data
   const r = data.totals.resources
@@ -69,11 +72,7 @@ export default function Overview() {
           label="Reserved vs budget"
           value={formatPercent(data.cpu_budget_used)}
           sub="of the CPU budget reserved"
-          footer={
-            <span title={budgetHint(budget.is_policy)}>
-              budget: {budget.label}
-            </span>
-          }
+          footer={<span title={budgetHint(budget.is_policy)}>budget: {budget.label}</span>}
         >
           <div className="space-y-2">
             <DualBar
@@ -99,7 +98,7 @@ export default function Overview() {
           tone="attention"
           footer={
             <Link to="/capacity" className="inline-flex items-center gap-1 hover:text-primary">
-              reserved but unused
+              reserved, unused at peak
               <ArrowRight size={11} aria-hidden />
             </Link>
           }
@@ -169,13 +168,17 @@ export default function Overview() {
               // to open, so it stays inert rather than offering a dead link.
               const row = (
                 <>
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
-                    {item.name}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-mono text-xs text-foreground">
+                      {item.name}
+                    </span>
+                    <AboutLine about={item.about} />
                   </span>
+                  {item.idle && <StatusBadge tone="neutral">Idle</StatusBadge>}
                   <span className="text-xs text-muted-foreground">{item.replicas}×</span>
                   {item.cpu_efficiency !== null && (
                     <span className="text-xs text-muted-foreground">
-                      {(item.cpu_efficiency * 100).toFixed(1)}% used
+                      {(item.cpu_efficiency * 100).toFixed(1)}% at peak
                     </span>
                   )}
                   <span className="font-mono text-xs text-warning-text">
@@ -190,7 +193,7 @@ export default function Overview() {
                     <Link
                       to={`/services/${encodeURIComponent(item.service)}`}
                       title={`Open ${item.service}`}
-                      className="flex items-center gap-3 px-3 py-2 transition-colors hover:bg-success-subtle"
+                      className="flex items-center gap-3 px-3 py-2 transition-colors hover:bg-muted"
                     >
                       {row}
                     </Link>

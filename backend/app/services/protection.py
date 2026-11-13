@@ -119,6 +119,25 @@ def classify_workload(name: str, pods: list[dict[str, Any]], settings: Settings)
     return Protection(level=ProtectionLevel.NORMAL)
 
 
+def platform_protection(service: str) -> Protection:
+    """The platform's own services: declared by an ArangoPlatformService.
+
+    The control plane, the UIs, the file parser and file manager, ML, and
+    monitoring are installed once per platform and every project depends on
+    them, so this tool never takes them down, however idle they look. The
+    per-project instances (AutoGraph, retrievers, user-defined apps) are not
+    declared this way and stay actionable.
+    """
+    return Protection(
+        level=ProtectionLevel.GUARDED,
+        reason=f"Part of the platform itself (ArangoPlatformService {service}).",
+        remediation=(
+            "Every project depends on it, so it stays up even when idle. "
+            "Set ARM_ALLOW_GUARDED_ACTIONS to override."
+        ),
+    )
+
+
 def strictest(levels: list[Protection]) -> Protection:
     """The most restrictive protection among a set, used when rolling up."""
     order = {

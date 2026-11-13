@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.api.deps import ClientsDep
+from app.api.deps import ClientsDep, SettingsDep
 from app.models.inventory import (
     InventorySnapshot,
     PodDetail,
@@ -18,7 +18,10 @@ from app.models.inventory import (
     ServiceGroup,
     WorkloadSummary,
 )
+from app.models.resources import WorkloadAbout
+from app.services import activity
 from app.services import inventory as inventory_service
+from app.services.about import describe, genai_index
 
 router = APIRouter(tags=["inventory"])
 
@@ -49,6 +52,20 @@ def get_service(name: str, clients: ClientsDep) -> ServiceDetail:
     if detail is None:
         raise HTTPException(status_code=404, detail=f"No service named {name!r}.")
     return detail
+
+
+@router.get("/services/{name}/about", response_model=dict[str, WorkloadAbout])
+def service_about(
+    name: str, clients: ClientsDep, settings: SettingsDep
+) -> dict[str, WorkloadAbout]:
+    """What each workload of a service is, and when it was last used."""
+    snap = inventory_service.get_snapshot(clients)
+    workloads = [w for w in snap.workloads if w.service == name]
+    if not workloads and not any(s.name == name for s in snap.services):
+        raise HTTPException(status_code=404, detail=f"No service named {name!r}.")
+    genai = genai_index(snap)
+    seen = activity.get_activity(settings)
+    return {w.name: describe(w, genai, seen) for w in workloads}
 
 
 @router.get("/workloads", response_model=list[WorkloadSummary])
